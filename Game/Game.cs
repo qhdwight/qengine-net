@@ -1,42 +1,32 @@
-﻿using System.Numerics;
+﻿using System.Collections.Generic;
+using System.Numerics;
+using Game.Graphics;
 using Silk.NET.Windowing;
 
 namespace Game;
 
-public class Game
+public static class Game
 {
-    private readonly IWindow _window;
-    private readonly World _world;
+    private static readonly List<ISystem> Systems = new() { new GraphicsSystem() };
 
-    public Game()
+    private static IWindow CreateWindow()
     {
         var windowOptions = WindowOptions.DefaultVulkan;
         windowOptions.Title = "Game";
-        _window = Window.Create(windowOptions);
-        _world = new World();
-        Entity entity = _world.AddEntity();
-        ref Position position = ref _world.AddComponent<Position>(entity);
-        position = new Position(Vector3.One);
+        return Window.Create(windowOptions);
     }
 
-    private int Run()
+    private static int Main(string[] args)
     {
-        _window.Initialize();
-        _window.Run(OnFrame);
-        _window.DoEvents();
-        _window.Reset();
+        var world = new World();
+        Entity displayEnt = world.AddEntity();
+        world.Add(displayEnt, new Display(CreateWindow()));
+        world.Add(displayEnt, new WantsQuit());
+        Entity cubeEnt = world.AddEntity();
+        world.Add(cubeEnt, new Position(Vector3.Zero));
+        while (world.All((World _, WantsQuit exec) => !exec.Yes))
+            foreach (ISystem system in Systems)
+                system.Update(world);
         return 0;
     }
-
-    private void OnFrame()
-    {
-        _window.DoEvents();
-        if (!_window.IsClosing) _window.DoUpdate();
-        if (_window.IsClosing) return;
-        _window.DoRender();
-    }
-
-    public void Update() { }
-
-    private static int Main(string[] args) { return new Game().Run(); }
 }
