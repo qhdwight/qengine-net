@@ -10,7 +10,7 @@ public class World
 {
     private readonly Dictionary<Type, StorageBase> _components = new();
     private readonly List<Entity> _entities = new();
-    private readonly List<Type> _cachedTypes = new();
+    private readonly List<Type> _cachedTypes = new(4);
 
     public Entity AddEntity()
     {
@@ -19,11 +19,10 @@ public class World
         return entity;
     }
 
-    public ref T Add<T>(Entity entity, T component) where T : struct
+    public ref T AddComp<T>(Entity entity, T component) where T : struct
     {
         Type type = typeof(T);
-        if (!_components.ContainsKey(type))
-            _components[type] = new Storage<T>();
+        if (!_components.ContainsKey(type)) _components[type] = new Storage<T>();
         var storage = (Storage<T>)_components[type];
         Debug.Assert(storage.Without(entity));
         ref T inPlaceComp = ref storage.Add(entity, new T());
@@ -31,7 +30,7 @@ public class World
         return ref inPlaceComp;
     }
 
-    public ref T Get<T>(Entity entity) where T : struct
+    public ref T GetComp<T>(Entity entity) where T : struct
     {
         Type type = typeof(T);
         Debug.Assert(_components.ContainsKey(type));
@@ -59,8 +58,27 @@ public class World
         return new EntityEnumerable(this, _cachedTypes);
     }
 
+    public EntityEnumerable View<T1, T2, T3>()
+    {
+        _cachedTypes.Clear();
+        _cachedTypes.Add(typeof(T1));
+        _cachedTypes.Add(typeof(T2));
+        _cachedTypes.Add(typeof(T3));
+        return new EntityEnumerable(this, _cachedTypes);
+    }
+
+    public EntityEnumerable View<T1, T2, T3, T4>()
+    {
+        _cachedTypes.Clear();
+        _cachedTypes.Add(typeof(T1));
+        _cachedTypes.Add(typeof(T2));
+        _cachedTypes.Add(typeof(T3));
+        _cachedTypes.Add(typeof(T4));
+        return new EntityEnumerable(this, _cachedTypes);
+    }
+
     public record struct EntityEnumerable(World _world, IEnumerable<Type> _types)
-        : IEnumerator<Entity>, IEnumerable
+        : IEnumerator<Entity>, IEnumerable<Entity>
     {
         private readonly World _world = _world;
         private readonly IEnumerable<Type> _types = _types;
@@ -82,6 +100,8 @@ public class World
         public Entity Current => _world._entities[_headIndex - 1];
 
         object IEnumerator.Current => Current;
+
+        IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => this;
 
         public IEnumerator GetEnumerator() => this;
 

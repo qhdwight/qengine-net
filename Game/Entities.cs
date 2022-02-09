@@ -9,6 +9,6 @@ public record struct Position(Vector3 Value);
 
 public record struct Rotation(Quaternion Value);
 
-public record struct Display(IWindow Handle);
+public record struct Display(IWindow? Window);
 
-public record struct WantsQuit(bool Yes);
+public record struct WantsQuit(bool Value);
