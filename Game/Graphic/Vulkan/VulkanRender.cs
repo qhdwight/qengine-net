@@ -5,7 +5,7 @@ namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    public static void Render(ref Graphics graphics)
+    public static void Render(ref VkGraphics graphics)
     {
         graphics.vk!.WaitForFences(graphics.device, 1, graphics.inFlightFences![graphics.currentFrame], true, ulong.MaxValue);
 

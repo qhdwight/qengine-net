@@ -50,7 +50,7 @@ internal static unsafe partial class VulkanGraphics
         KhrSwapchain.ExtensionName
     };
 
-    private static void InitWindow(ref Graphics graphics)
+    private static void InitWindow(ref VkGraphics graphics)
     {
         WindowOptions options = WindowOptions.DefaultVulkan with { Title = WindowName };
 
@@ -61,7 +61,7 @@ internal static unsafe partial class VulkanGraphics
             throw new Exception("Windowing platform doesn't support Vulkan.");
     }
 
-    internal static void InitVulkan(ref Graphics graphics)
+    internal static void InitVulkan(ref VkGraphics graphics)
     {
         InitWindow(ref graphics);
         CreateInstance(ref graphics);
@@ -85,7 +85,7 @@ internal static unsafe partial class VulkanGraphics
         CreateSyncObjects(ref graphics);
     }
 
-    internal static void CleanUp(ref Graphics graphics)
+    internal static void CleanUp(ref VkGraphics graphics)
     {
         CleanUpSwapChain(ref graphics);
 
@@ -121,7 +121,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.window?.Dispose();
     }
 
-    private static void CreateInstance(ref Graphics graphics)
+    private static void CreateInstance(ref VkGraphics graphics)
     {
         graphics.vk = Vk.GetApi();
 
@@ -186,7 +186,7 @@ internal static unsafe partial class VulkanGraphics
         createInfo.PfnUserCallback = (DebugUtilsMessengerCallbackFunctionEXT)DebugCallback;
     }
 
-    private static void SetupDebugMessenger(ref Graphics graphics)
+    private static void SetupDebugMessenger(ref VkGraphics graphics)
     {
         if (!EnableValidationLayers) return;
 
@@ -200,7 +200,7 @@ internal static unsafe partial class VulkanGraphics
             throw new Exception("Failed to set up debug messenger!");
     }
 
-    private static void CreateSurface(ref Graphics graphics)
+    private static void CreateSurface(ref VkGraphics graphics)
     {
         if (!graphics.vk!.TryGetInstanceExtension<KhrSurface>(graphics.instance, out graphics.khrSurface))
             throw new NotSupportedException("KHR_surface extension not found.");
@@ -208,7 +208,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.surface = graphics.window!.VkSurface!.Create<AllocationCallbacks>(graphics.instance.ToHandle(), null).ToSurface();
     }
 
-    private static void PickPhysicalDevice(ref Graphics graphics)
+    private static void PickPhysicalDevice(ref VkGraphics graphics)
     {
         uint deviceCount = 0;
         graphics.vk!.EnumeratePhysicalDevices(graphics.instance, ref deviceCount, null);
@@ -233,7 +233,7 @@ internal static unsafe partial class VulkanGraphics
             throw new Exception("Failed to find a suitable GPU!");
     }
 
-    private static void CreateLogicalDevice(ref Graphics graphics)
+    private static void CreateLogicalDevice(ref VkGraphics graphics)
     {
         QueueFamilyIndices indices = FindQueueFamilies(ref graphics, graphics.physicalDevice);
 
@@ -293,7 +293,7 @@ internal static unsafe partial class VulkanGraphics
         SilkMarshal.Free((nint)createInfo.PpEnabledExtensionNames);
     }
 
-    private static void CreateSyncObjects(ref Graphics graphics)
+    private static void CreateSyncObjects(ref VkGraphics graphics)
     {
         graphics.imageAvailableSemaphores = new Semaphore[MaxFramesInFlight];
         graphics.renderFinishedSemaphores = new Semaphore[MaxFramesInFlight];
@@ -320,7 +320,7 @@ internal static unsafe partial class VulkanGraphics
         }
     }
 
-    private static ShaderModule CreateShaderModule(ref Graphics graphics, byte[] code)
+    private static ShaderModule CreateShaderModule(ref VkGraphics graphics, byte[] code)
     {
         ShaderModuleCreateInfo createInfo = new()
         {
@@ -341,7 +341,7 @@ internal static unsafe partial class VulkanGraphics
         return shaderModule;
     }
 
-    private static bool IsDeviceSuitable(ref Graphics graphics, PhysicalDevice device)
+    private static bool IsDeviceSuitable(ref VkGraphics graphics, PhysicalDevice device)
     {
         QueueFamilyIndices indices = FindQueueFamilies(ref graphics, device);
 
@@ -357,7 +357,7 @@ internal static unsafe partial class VulkanGraphics
         return indices.IsComplete() && extensionsSupported && swapChainAdequate;
     }
 
-    private static bool CheckDeviceExtensionsSupport(ref Graphics graphics, PhysicalDevice device)
+    private static bool CheckDeviceExtensionsSupport(ref VkGraphics graphics, PhysicalDevice device)
     {
         uint extensionCount = 0;
         graphics.vk!.EnumerateDeviceExtensionProperties(device, (byte*)null, ref extensionCount, null);
@@ -371,7 +371,7 @@ internal static unsafe partial class VulkanGraphics
         return DeviceExtensions.All(availableExtensionNames.Contains);
     }
 
-    private static QueueFamilyIndices FindQueueFamilies(ref Graphics graphics, PhysicalDevice device)
+    private static QueueFamilyIndices FindQueueFamilies(ref VkGraphics graphics, PhysicalDevice device)
     {
         var indices = new QueueFamilyIndices();
 
@@ -402,7 +402,7 @@ internal static unsafe partial class VulkanGraphics
         return indices;
     }
 
-    private static string[] GetRequiredExtensions(ref Graphics graphics)
+    private static string[] GetRequiredExtensions(ref VkGraphics graphics)
     {
         byte** glfwExtensions = graphics.window!.VkSurface!.GetRequiredExtensions(out uint glfwExtensionCount);
         string[]? extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount);
@@ -412,7 +412,7 @@ internal static unsafe partial class VulkanGraphics
             : extensions;
     }
 
-    private static bool CheckValidationLayerSupport(ref Graphics graphics)
+    private static bool CheckValidationLayerSupport(ref VkGraphics graphics)
     {
         uint layerCount = 0;
         graphics.vk!.EnumerateInstanceLayerProperties(ref layerCount, null);

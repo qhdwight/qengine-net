@@ -1,6 +1,6 @@
 using Silk.NET.Maths;
 
-namespace Game.Voxel;
+namespace Game.Voxels;
 
 using Vector3Int = Vector3D<int>;
 

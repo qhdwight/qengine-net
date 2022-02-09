@@ -19,7 +19,7 @@ public abstract class StorageBase
 }
 
 // TODO: add pagination to avoid large sparse size
-public class Storage<T> : StorageBase where T : struct
+public class Storage<T> : StorageBase
 {
     private T[] _components = Array.Empty<T>();
 

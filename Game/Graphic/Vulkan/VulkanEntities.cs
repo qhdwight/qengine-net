@@ -5,7 +5,7 @@ using Silk.NET.Windowing;
 
 namespace Game.Graphic.Vulkan;
 
-internal record struct Graphics
+internal record struct VkGraphics
 {
     internal IWindow? window;
     internal Vk? vk;

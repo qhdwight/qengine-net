@@ -7,7 +7,7 @@ namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    private static void CreateSwapChain(ref Graphics graphics)
+    private static void CreateSwapChain(ref VkGraphics graphics)
     {
         SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(ref graphics, graphics.physicalDevice);
 
@@ -74,7 +74,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.swapChainExtent = extent;
     }
 
-    private static void CreateImageViews(ref Graphics graphics)
+    private static void CreateImageViews(ref VkGraphics graphics)
     {
         graphics.swapChainImageViews = new ImageView[graphics.swapChainImages!.Length];
 
@@ -126,7 +126,7 @@ internal static unsafe partial class VulkanGraphics
         return PresentModeKHR.PresentModeFifoKhr;
     }
 
-    private static Extent2D ChooseSwapExtent(ref Graphics graphics, SurfaceCapabilitiesKHR capabilities)
+    private static Extent2D ChooseSwapExtent(ref VkGraphics graphics, SurfaceCapabilitiesKHR capabilities)
     {
         if (capabilities.CurrentExtent.Width != uint.MaxValue)
             return capabilities.CurrentExtent;
@@ -145,7 +145,7 @@ internal static unsafe partial class VulkanGraphics
         return actualExtent;
     }
 
-    private static SwapChainSupportDetails QuerySwapChainSupport(ref Graphics graphics, PhysicalDevice physicalDevice)
+    private static SwapChainSupportDetails QuerySwapChainSupport(ref VkGraphics graphics, PhysicalDevice physicalDevice)
     {
         var details = new SwapChainSupportDetails();
 
@@ -182,7 +182,7 @@ internal static unsafe partial class VulkanGraphics
         return details;
     }
     
-    private static void RecreateSwapChain(ref Graphics graphics)
+    private static void RecreateSwapChain(ref VkGraphics graphics)
     {
         Vector2D<int> framebufferSize = graphics.window!.FramebufferSize;
 
@@ -209,7 +209,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.imagesInFlight = new Fence[graphics.swapChainImages!.Length];
     }
 
-    private static void CleanUpSwapChain(ref Graphics graphics)
+    private static void CleanUpSwapChain(ref VkGraphics graphics)
     {
         foreach (Framebuffer framebuffer in graphics.swapChainFramebuffers!)
         {

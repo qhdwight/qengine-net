@@ -21,7 +21,7 @@ internal static unsafe partial class VulkanGraphics
         0, 1, 2, 2, 3, 0
     };
 
-    private static void CreateVertexBuffer(ref Graphics graphics)
+    private static void CreateVertexBuffer(ref VkGraphics graphics)
     {
         var bufferSize = (ulong)(Unsafe.SizeOf<Vertex>() * Vertices.Length);
 
@@ -46,7 +46,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.FreeMemory(graphics.device, stagingBufferMemory, null);
     }
 
-    private static void CreateIndexBuffer(ref Graphics graphics)
+    private static void CreateIndexBuffer(ref VkGraphics graphics)
     {
         var bufferSize = (ulong)(Unsafe.SizeOf<ushort>() * Indices.Length);
 
@@ -71,7 +71,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.FreeMemory(graphics.device, stagingBufferMemory, null);
     }
 
-    private static void CreateBuffer(ref Graphics graphics, ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, ref Buffer buffer, ref DeviceMemory bufferMemory)
+    private static void CreateBuffer(ref VkGraphics graphics, ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, ref Buffer buffer, ref DeviceMemory bufferMemory)
     {
         BufferCreateInfo bufferInfo = new()
         {
@@ -101,7 +101,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.BindBufferMemory(graphics.device, buffer, bufferMemory, 0);
     }
 
-    private static void CopyBuffer(ref Graphics graphics, Buffer srcBuffer, Buffer dstBuffer, ulong size)
+    private static void CopyBuffer(ref VkGraphics graphics, Buffer srcBuffer, Buffer dstBuffer, ulong size)
     {
         CommandBufferAllocateInfo allocateInfo = new()
         {
@@ -143,7 +143,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.FreeCommandBuffers(graphics.device, graphics.commandPool, 1, commandBuffer);
     }
 
-    private static void UpdateUniformBuffer(ref Graphics graphics, uint currentImage)
+    private static void UpdateUniformBuffer(ref VkGraphics graphics, uint currentImage)
     {
         var time = (float)graphics.window!.Time;
 
@@ -164,7 +164,7 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.UnmapMemory(graphics.device, graphics.uniformBuffersMemory![currentImage]);
     }
 
-    private static uint FindMemoryType(ref Graphics graphics, uint typeFilter, MemoryPropertyFlags properties)
+    private static uint FindMemoryType(ref VkGraphics graphics, uint typeFilter, MemoryPropertyFlags properties)
     {
         graphics.vk!.GetPhysicalDeviceMemoryProperties(graphics.physicalDevice, out PhysicalDeviceMemoryProperties memProperties);
 

@@ -8,9 +8,9 @@ public class GraphicsSystem : ISystem
 {
     public void Execute(World world)
     {
-        foreach (Entity ent in world.View<Graphics, WantsQuit>())
+        foreach (Entity ent in world.View<VkGraphics, WantsQuit>())
         {
-            ref Graphics graphics = ref world.GetComp<Graphics>(ent);
+            ref VkGraphics graphics = ref world.GetComp<VkGraphics>(ent);
             if (graphics.window is null)
                 VulkanGraphics.InitVulkan(ref graphics);
             IWindow window = graphics.window!;
@@ -37,9 +37,9 @@ public class GraphicsSystem : ISystem
 
     private static void Render(World world)
     {
-        foreach (Entity ent in world.View<Graphics>())
+        foreach (Entity ent in world.View<VkGraphics>())
         {
-            ref Graphics graphics = ref world.GetComp<Graphics>(ent);
+            ref VkGraphics graphics = ref world.GetComp<VkGraphics>(ent);
             VulkanGraphics.Render(ref graphics);
         }
     }

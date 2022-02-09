@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Silk.NET.Maths;
 
-namespace Game.Voxel;
+namespace Game.Voxels;
 
 using Vector3Int = Vector3D<int>;
 
-public partial class PointOctree<T>
+public partial class Octree<T>
 {
     private class Node
     {
@@ -105,7 +105,7 @@ public partial class PointOctree<T>
         //     }
         // }
 
-        public void GetNearby(ref Vector3Int position, float maxDistance, ICollection<T> result)
+        public void GetNearby(in Vector3Int position, float maxDistance, ICollection<T> result)
         {
             var maxDistanceInt = (int) Scalar.Ceiling(maxDistance);
             // Does the node contain this position at all?
@@ -123,7 +123,7 @@ public partial class PointOctree<T>
             // Check children
             if (_children is not null)
                 for (var i = 0; i < 8; i++)
-                    _children[i].GetNearby(ref position, maxDistanceInt, result);
+                    _children[i].GetNearby(position, maxDistanceInt, result);
         }
 
         public void GetAll(List<T> result)

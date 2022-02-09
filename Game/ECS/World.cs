@@ -19,18 +19,16 @@ public class World
         return entity;
     }
 
-    public ref T AddComp<T>(Entity entity, T component) where T : struct
+    public ref T AddComp<T>(Entity entity, T component)
     {
         Type type = typeof(T);
         if (!_components.ContainsKey(type)) _components[type] = new Storage<T>();
         var storage = (Storage<T>)_components[type];
         Debug.Assert(storage.Without(entity));
-        ref T inPlaceComp = ref storage.Add(entity, new T());
-        inPlaceComp = component;
-        return ref inPlaceComp;
+        return ref storage.Add(entity, component);
     }
 
-    public ref T GetComp<T>(Entity entity) where T : struct
+    public ref T GetComp<T>(Entity entity)
     {
         Type type = typeof(T);
         Debug.Assert(_components.ContainsKey(type));

@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Silk.NET.Maths;
 
-namespace Game.Voxel;
+namespace Game.Voxels;
 
 using Vector3Int = Vector3D<int>;
 
-public partial class PointOctree<T>
+public partial class Octree<T>
 {
     private Node _rootNode;
     private readonly int _initialSize;
@@ -16,7 +17,10 @@ public partial class PointOctree<T>
 
     public BoundingBox MaxBounds => new(_rootNode.Center, new Vector3Int(_rootNode.SideLength, _rootNode.SideLength, _rootNode.SideLength));
 
-    public PointOctree(int initialWorldSize, in Vector3Int initialWorldPos, int minNodeSize)
+    /// <param name="initialWorldSize">Size of the sides of the initial node. The octree will never shrink smaller than this.</param>
+    /// <param name="initialWorldPos">Position of the centre of the initial node.</param>
+    /// <param name="minNodeSize">Nodes will stop splitting if the new nodes would be smaller than this.</param>
+    public Octree(int initialWorldSize, in Vector3Int initialWorldPos, int minNodeSize)
     {
         if (minNodeSize > initialWorldSize)
         {
@@ -36,11 +40,8 @@ public partial class PointOctree<T>
         while (!_rootNode.Add(obj, objPos))
         {
             Grow(objPos - _rootNode.Center);
-            if (++count > 20)
-            {
-                Console.Error.WriteLine($"Aborted Add operation as it seemed to be going on forever ({count - 1}) attempts at growing the octree.");
-                return;
-            }
+            count++;
+            Debug.Assert(count > 20, "Aborted Add operation as it seemed to be going on forever");
         }
         Count++;
     }
@@ -78,10 +79,10 @@ public partial class PointOctree<T>
     //     return collidingWith.ToArray();
     // }
 
-    public T[] GetNearby(Vector3Int position, float maxDistance)
+    public T[] GetNearby(in Vector3Int position, float maxDistance)
     {
         var collidingWith = new List<T>();
-        _rootNode.GetNearby(ref position, maxDistance, collidingWith);
+        _rootNode.GetNearby(position, maxDistance, collidingWith);
         return collidingWith.ToArray();
     }
 
