@@ -7,43 +7,48 @@ public abstract class StorageBase
 {
 }
 
-public class Storage<T> : StorageBase where T : ValBase
+// TODO: add pagination to avoid large sparse size
+public class Storage<T> : StorageBase where T : struct
 {
-    private const int DefaultSparseSize = 64, InvalidEntry = -1;
+    private const int NilEntity = -1;
 
-    private readonly List<T> _components = new();
-    private List<int> _sparse = new(DefaultSparseSize);
+    private T[] _components = Array.Empty<T>();
+    private int[] _sparse = Array.Empty<int>();
     private readonly List<int> _dense = new();
 
     public void Add(Entity entity, T component)
     {
-        int sparseIndex = _dense.Count;
+        int index = _dense.Count;
         _dense.Add(entity.Index);
-        _sparse.Capacity = Math.Max(_sparse.Capacity, sparseIndex + 1);
-        while (sparseIndex >= _sparse.Count)
-            _sparse.Add(InvalidEntry);
-        _sparse[entity.Index] = sparseIndex;
-        _components.Add(component);
+        if (index >= _sparse.Length)
+        {
+            int oldLength = _sparse.Length;
+            Array.Resize(ref _sparse, index + 1);
+            for (int i = oldLength; i < _sparse.Length; i++)
+                _sparse[i] = NilEntity;
+            Array.Resize(ref _components, index + 1);
+        }
+        _sparse[entity.Index] = index;
+        _components[index] = component;
     }
 
     public void Remove(Entity entity)
     {
-        int sparseIndex = _sparse[entity.Index];
-        _dense[sparseIndex] = _dense[^1];
-        _sparse[_dense[^1]] = sparseIndex;
+        // TODO: validate
+        int index = _sparse[entity.Index];
+        _dense[index] = _dense[^1];
+        _sparse[_dense[^1]] = index;
         _dense.RemoveAt(_dense.Count - 1);
-        _sparse[entity.Index] = -1;
+        _sparse[entity.Index] = NilEntity;
     }
 
-    public bool TryGet(Entity entity, out T component)
+    public ref T Get(Entity entity)
     {
-        int sparseIndex = _sparse[entity.Index];
-        if (sparseIndex == InvalidEntry)
-        {
-            component = default;
-            return false;
-        }
-        component = _components[sparseIndex];
-        return true;
+        int index = _sparse[entity.Index];
+        return ref _components[index];
     }
+
+    public bool With(Entity entity) => entity.Index < _sparse.Length
+                                    && _sparse[entity.Index] < _dense.Count
+                                    && _sparse[entity.Index] == NilEntity;
 }
