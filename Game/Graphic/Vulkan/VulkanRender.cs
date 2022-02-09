@@ -1,29 +1,39 @@
 using System;
 using Silk.NET.Vulkan;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    public static void Render(ref Graphics graphics, double delta)
+    public static void Render(ref Graphics graphics)
     {
         graphics.vk!.WaitForFences(graphics.device, 1, graphics.inFlightFences![graphics.currentFrame], true, ulong.MaxValue);
 
         uint imageIndex = 0;
-        graphics.khrSwapChain!.AcquireNextImage(graphics.device, graphics.swapChain, ulong.MaxValue,
-                                                graphics.imageAvailableSemaphores![graphics.currentFrame], default,
-                                                ref imageIndex);
+        Result result = graphics.khrSwapChain!.AcquireNextImage(graphics.device, graphics.swapChain, ulong.MaxValue,
+                                                                graphics.imageAvailableSemaphores![graphics.currentFrame], default,
+                                                                ref imageIndex);
+
+        if (result == Result.ErrorOutOfDateKhr)
+        {
+            RecreateSwapChain(ref graphics);
+            return;
+        }
+        if (result != Result.Success && result != Result.SuboptimalKhr)
+            throw new Exception("Failed to acquire swap chain image!");
+
+        UpdateUniformBuffer(ref graphics, imageIndex);
 
         if (graphics.imagesInFlight![imageIndex].Handle != default)
             graphics.vk!.WaitForFences(graphics.device, 1, graphics.imagesInFlight[imageIndex], true, ulong.MaxValue);
-        graphics.imagesInFlight[imageIndex] = graphics.inFlightFences[graphics.currentFrame];
+        graphics.imagesInFlight[imageIndex] = graphics.inFlightFences![graphics.currentFrame];
 
         SubmitInfo submitInfo = new()
         {
             SType = StructureType.SubmitInfo
         };
 
-        Semaphore* waitSemaphores = stackalloc[] { graphics.imageAvailableSemaphores[graphics.currentFrame] };
+        Semaphore* waitSemaphores = stackalloc[] { graphics.imageAvailableSemaphores![graphics.currentFrame] };
         PipelineStageFlags* waitStages = stackalloc[] { PipelineStageFlags.PipelineStageColorAttachmentOutputBit };
 
         CommandBuffer buffer = graphics.commandBuffers![imageIndex];
@@ -64,7 +74,7 @@ internal static unsafe partial class VulkanGraphics
             PImageIndices = &imageIndex
         };
 
-        graphics.khrSwapChain.QueuePresent(graphics.presentQueue, presentInfo);
+        graphics.khrSwapChain!.QueuePresent(graphics.presentQueue, presentInfo);
 
         graphics.currentFrame = (graphics.currentFrame + 1) % MaxFramesInFlight;
 

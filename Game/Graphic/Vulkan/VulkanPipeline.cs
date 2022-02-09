@@ -1,8 +1,10 @@
 using System;
+using System.Runtime.CompilerServices;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
@@ -303,6 +305,112 @@ internal static unsafe partial class VulkanGraphics
 
             if (graphics.vk!.EndCommandBuffer(graphics.commandBuffers[i]) != Result.Success)
                 throw new Exception("Failed to record command buffer!");
+        }
+    }
+
+    private static void CreateUniformBuffers(ref Graphics graphics)
+    {
+        var bufferSize = (ulong)Unsafe.SizeOf<UniformBufferObject>();
+
+        graphics.uniformBuffers = new Buffer[graphics.swapChainImages!.Length];
+        graphics.uniformBuffersMemory = new DeviceMemory[graphics.swapChainImages!.Length];
+
+        for (var i = 0; i < graphics.swapChainImages!.Length; i++)
+            CreateBuffer(ref graphics, bufferSize, BufferUsageFlags.BufferUsageUniformBufferBit,
+                         MemoryPropertyFlags.MemoryPropertyHostVisibleBit | MemoryPropertyFlags.MemoryPropertyHostCoherentBit,
+                         ref graphics.uniformBuffers![i], ref graphics.uniformBuffersMemory![i]);
+    }
+
+    private static void CreateDescriptorSetLayout(ref Graphics graphics)
+    {
+        DescriptorSetLayoutBinding uboLayoutBinding = new()
+        {
+            Binding = 0,
+            DescriptorCount = 1,
+            DescriptorType = DescriptorType.UniformBuffer,
+            PImmutableSamplers = null,
+            StageFlags = ShaderStageFlags.ShaderStageVertexBit,
+        };
+
+        DescriptorSetLayoutCreateInfo layoutInfo = new()
+        {
+            SType = StructureType.DescriptorSetLayoutCreateInfo,
+            BindingCount = 1,
+            PBindings = &uboLayoutBinding,
+        };
+
+        fixed (DescriptorSetLayout* descriptorSetLayoutPtr = &graphics.descriptorSetLayout)
+            if (graphics.vk!.CreateDescriptorSetLayout(graphics.device, layoutInfo, null, descriptorSetLayoutPtr) != Result.Success)
+                throw new Exception("Failed to create descriptor set layout!");
+    }
+
+    private static void CreateDescriptorPool(ref Graphics graphics)
+    {
+        DescriptorPoolSize poolSize = new()
+        {
+            Type = DescriptorType.UniformBuffer,
+            DescriptorCount = (uint)graphics.swapChainImages!.Length
+        };
+
+        DescriptorPoolCreateInfo poolInfo = new()
+        {
+            SType = StructureType.DescriptorPoolCreateInfo,
+            PoolSizeCount = 1,
+            PPoolSizes = &poolSize,
+            MaxSets = (uint)graphics.swapChainImages!.Length
+        };
+
+        fixed (DescriptorPool* descriptorPoolPtr = &graphics.descriptorPool)
+        {
+            if (graphics.vk!.CreateDescriptorPool(graphics.device, poolInfo, null, descriptorPoolPtr) != Result.Success)
+                throw new Exception("Failed to create descriptor pool!");
+        }
+    }
+
+    private static void CreateDescriptorSets(ref Graphics graphics)
+    {
+        var layouts = new DescriptorSetLayout[graphics.swapChainImages!.Length];
+        Array.Fill(layouts, graphics.descriptorSetLayout);
+
+        fixed (DescriptorSetLayout* layoutsPtr = layouts)
+        {
+            DescriptorSetAllocateInfo allocateInfo = new()
+            {
+                SType = StructureType.DescriptorSetAllocateInfo,
+                DescriptorPool = graphics.descriptorPool,
+                DescriptorSetCount = (uint)graphics.swapChainImages!.Length,
+                PSetLayouts = layoutsPtr
+            };
+
+            graphics.descriptorSets = new DescriptorSet[graphics.swapChainImages.Length];
+            fixed (DescriptorSet* descriptorSetsPtr = graphics.descriptorSets)
+            {
+                if (graphics.vk!.AllocateDescriptorSets(graphics.device, allocateInfo, descriptorSetsPtr) != Result.Success)
+                    throw new Exception("Failed to allocate descriptor sets!");
+            }
+        }
+
+        for (var i = 0; i < graphics.swapChainImages.Length; i++)
+        {
+            DescriptorBufferInfo bufferInfo = new()
+            {
+                Buffer = graphics.uniformBuffers![i],
+                Offset = 0,
+                Range = (ulong)Unsafe.SizeOf<UniformBufferObject>()
+            };
+
+            WriteDescriptorSet descriptorWrite = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = graphics.descriptorSets[i],
+                DstBinding = 0,
+                DstArrayElement = 0,
+                DescriptorType = DescriptorType.UniformBuffer,
+                DescriptorCount = 1,
+                PBufferInfo = &bufferInfo
+            };
+
+            graphics.vk!.UpdateDescriptorSets(graphics.device, 1, descriptorWrite, 0, null);
         }
     }
 }

@@ -1,3 +1,4 @@
+using Game.Graphic.Vulkan;
 using Silk.NET.Windowing;
 
 namespace Game.Graphic;
@@ -38,7 +39,7 @@ public class GraphicsSystem : ISystem
         foreach (Entity ent in world.View<Graphics>())
         {
             ref Graphics graphics = ref world.GetComp<Graphics>(ent);
-            VulkanGraphics.Render(ref graphics, 0.0);
+            VulkanGraphics.Render(ref graphics);
         }
     }
 }

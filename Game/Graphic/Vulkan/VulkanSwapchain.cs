@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
@@ -180,5 +180,64 @@ internal static unsafe partial class VulkanGraphics
         }
 
         return details;
+    }
+    
+    private static void RecreateSwapChain(ref Graphics graphics)
+    {
+        Vector2D<int> framebufferSize = graphics.window!.FramebufferSize;
+
+        while (framebufferSize.X == 0 || framebufferSize.Y == 0)
+        {
+            framebufferSize = graphics.window.FramebufferSize;
+            graphics.window.DoEvents();
+        }
+
+        graphics.vk!.DeviceWaitIdle(graphics.device);
+
+        CleanUpSwapChain(ref graphics);
+
+        CreateSwapChain(ref graphics);
+        CreateImageViews(ref graphics);
+        CreateRenderPass(ref graphics);
+        CreateGraphicsPipeline(ref graphics);
+        CreateFramebuffers(ref graphics);
+        CreateUniformBuffers(ref graphics);
+        CreateDescriptorPool(ref graphics);
+        CreateDescriptorSets(ref graphics);
+        CreateCommandBuffers(ref graphics);
+
+        graphics.imagesInFlight = new Fence[graphics.swapChainImages!.Length];
+    }
+
+    private static void CleanUpSwapChain(ref Graphics graphics)
+    {
+        foreach (Framebuffer framebuffer in graphics.swapChainFramebuffers!)
+        {
+            graphics.vk!.DestroyFramebuffer(graphics.device, framebuffer, null);
+        }
+
+        fixed (CommandBuffer* commandBuffersPtr = graphics.commandBuffers)
+        {
+            graphics.vk!.FreeCommandBuffers(graphics.device, graphics.commandPool, (uint)graphics.commandBuffers!.Length, commandBuffersPtr);
+        }
+
+        graphics.vk!.DestroyPipeline(graphics.device, graphics.graphicsPipeline, null);
+        graphics.vk!.DestroyPipelineLayout(graphics.device, graphics.pipelineLayout, null);
+        graphics.vk!.DestroyRenderPass(graphics.device, graphics.renderPass, null);
+
+        foreach (ImageView imageView in graphics.swapChainImageViews!)
+        {
+            graphics.vk!.DestroyImageView(graphics.device, imageView, null);
+        }
+
+        graphics.khrSwapChain!.DestroySwapchain(graphics.device, graphics.swapChain, null);
+
+        for (var i = 0; i < graphics.swapChainImages!.Length; i++)
+        {
+            graphics.vk!.DestroyBuffer(graphics.device, graphics.uniformBuffers![i], null);
+            graphics.vk!.FreeMemory(graphics.device, graphics.uniformBuffersMemory![i], null);
+        }
+
+        graphics.vk!.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
     }
 }

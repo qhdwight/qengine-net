@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
 internal static partial class VulkanGraphics
 {

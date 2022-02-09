@@ -10,7 +10,7 @@ using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
 internal record struct QueueFamilyIndices
 {
@@ -72,15 +72,31 @@ internal static unsafe partial class VulkanGraphics
         CreateSwapChain(ref graphics);
         CreateImageViews(ref graphics);
         CreateRenderPass(ref graphics);
+        CreateDescriptorSetLayout(ref graphics);
         CreateGraphicsPipeline(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateCommandPool(ref graphics);
+        CreateVertexBuffer(ref graphics);
+        CreateIndexBuffer(ref graphics);
+        CreateUniformBuffers(ref graphics);
+        CreateDescriptorPool(ref graphics);
+        CreateDescriptorSets(ref graphics);
         CreateCommandBuffers(ref graphics);
         CreateSyncObjects(ref graphics);
     }
 
     public static void CleanUp(ref Graphics graphics)
     {
+        CleanUpSwapChain(ref graphics);
+
+        graphics.vk!.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
+
+        graphics.vk!.DestroyBuffer(graphics.device, graphics.indexBuffer, null);
+        graphics.vk!.FreeMemory(graphics.device, graphics.indexBufferMemory, null);
+
+        graphics.vk!.DestroyBuffer(graphics.device, graphics.vertexBuffer, null);
+        graphics.vk!.FreeMemory(graphics.device, graphics.vertexBufferMemory, null);
+
         for (var i = 0; i < MaxFramesInFlight; i++)
         {
             graphics.vk!.DestroySemaphore(graphics.device, graphics.renderFinishedSemaphores![i], null);
@@ -89,22 +105,6 @@ internal static unsafe partial class VulkanGraphics
         }
 
         graphics.vk!.DestroyCommandPool(graphics.device, graphics.commandPool, null);
-
-        foreach (Framebuffer framebuffer in graphics.swapChainFramebuffers!)
-        {
-            graphics.vk!.DestroyFramebuffer(graphics.device, framebuffer, null);
-        }
-
-        graphics.vk!.DestroyPipeline(graphics.device, graphics.graphicsPipeline, null);
-        graphics.vk!.DestroyPipelineLayout(graphics.device, graphics.pipelineLayout, null);
-        graphics.vk!.DestroyRenderPass(graphics.device, graphics.renderPass, null);
-
-        foreach (ImageView imageView in graphics.swapChainImageViews!)
-        {
-            graphics.vk!.DestroyImageView(graphics.device, imageView, null);
-        }
-
-        graphics.khrSwapChain!.DestroySwapchain(graphics.device, graphics.swapChain, null);
 
         graphics.vk!.DestroyDevice(graphics.device, null);
 
