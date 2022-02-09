@@ -14,17 +14,17 @@ namespace Game.Graphic.Vulkan;
 
 internal record struct QueueFamilyIndices
 {
-    public uint? GraphicsFamily { get; set; }
-    public uint? PresentFamily { get; set; }
+    internal uint? GraphicsFamily { get; set; }
+    internal uint? PresentFamily { get; set; }
 
-    public bool IsComplete() => GraphicsFamily.HasValue && PresentFamily.HasValue;
+    internal bool IsComplete() => GraphicsFamily.HasValue && PresentFamily.HasValue;
 }
 
 internal record struct SwapChainSupportDetails
 {
-    public SurfaceCapabilitiesKHR capabilities;
-    public SurfaceFormatKHR[] formats;
-    public PresentModeKHR[] presentModes;
+    internal SurfaceCapabilitiesKHR capabilities;
+    internal SurfaceFormatKHR[] formats;
+    internal PresentModeKHR[] presentModes;
 }
 
 internal static unsafe partial class VulkanGraphics
@@ -61,7 +61,7 @@ internal static unsafe partial class VulkanGraphics
             throw new Exception("Windowing platform doesn't support Vulkan.");
     }
 
-    public static void InitVulkan(ref Graphics graphics)
+    internal static void InitVulkan(ref Graphics graphics)
     {
         InitWindow(ref graphics);
         CreateInstance(ref graphics);
@@ -85,7 +85,7 @@ internal static unsafe partial class VulkanGraphics
         CreateSyncObjects(ref graphics);
     }
 
-    public static void CleanUp(ref Graphics graphics)
+    internal static void CleanUp(ref Graphics graphics)
     {
         CleanUpSwapChain(ref graphics);
 
