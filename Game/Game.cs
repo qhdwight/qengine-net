@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
-using Game.Graphics;
+using Game.Graphic;
 
 namespace Game;
 
@@ -12,7 +12,7 @@ public static class Game
     {
         var world = new World();
         Entity displayEnt = world.AddEntity();
-        world.AddComp(displayEnt, new Display());
+        world.AddComp(displayEnt, new Graphics());
         world.AddComp(displayEnt, new WantsQuit());
         Entity cubeEnt = world.AddEntity();
         world.AddComp(cubeEnt, new Position(Vector3.Zero));
