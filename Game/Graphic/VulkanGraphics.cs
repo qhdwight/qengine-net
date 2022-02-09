@@ -51,14 +51,6 @@ internal static unsafe class VulkanGraphics
         KhrSwapchain.ExtensionName
     };
 
-    // public void Run()
-    // {
-    //     InitWindow();
-    //     InitVulkan();
-    //     MainLoop();
-    //     CleanUp();
-    // }
-
     private static void InitWindow(ref Graphics graphics)
     {
         WindowOptions options = WindowOptions.DefaultVulkan with { Title = WindowName };
@@ -703,9 +695,7 @@ internal static unsafe class VulkanGraphics
             graphics.vk!.CmdEndRenderPass(graphics.commandBuffers[i]);
 
             if (graphics.vk!.EndCommandBuffer(graphics.commandBuffers[i]) != Result.Success)
-            {
                 throw new Exception("Failed to record command buffer!");
-            }
         }
     }
 
