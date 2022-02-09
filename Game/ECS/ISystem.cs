@@ -1,4 +1,4 @@
-namespace Game;
+namespace Game.ECS;
 
 public interface ISystem
 {

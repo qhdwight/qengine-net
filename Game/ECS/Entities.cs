@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Game;
+namespace Game.ECS;
 
 public record struct Entity(int Index);
 

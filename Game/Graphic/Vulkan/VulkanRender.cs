@@ -28,10 +28,7 @@ internal static unsafe partial class VulkanGraphics
             graphics.vk!.WaitForFences(graphics.device, 1, graphics.imagesInFlight[imageIndex], true, ulong.MaxValue);
         graphics.imagesInFlight[imageIndex] = graphics.inFlightFences![graphics.currentFrame];
 
-        SubmitInfo submitInfo = new()
-        {
-            SType = StructureType.SubmitInfo
-        };
+        SubmitInfo submitInfo = new() { SType = StructureType.SubmitInfo };
 
         Semaphore* waitSemaphores = stackalloc[] { graphics.imageAvailableSemaphores![graphics.currentFrame] };
         PipelineStageFlags* waitStages = stackalloc[] { PipelineStageFlags.PipelineStageColorAttachmentOutputBit };

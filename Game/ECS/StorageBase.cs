@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Game;
+namespace Game.ECS;
 
 public abstract class StorageBase
 {

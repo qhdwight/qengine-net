@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace Game;
+namespace Game.ECS;
 
 public class World
 {
@@ -76,6 +76,9 @@ public class World
         _cachedTypes.Add(typeof(T4));
         return new EntityEnumerable(this, _cachedTypes);
     }
+
+    public bool All<T>(Func<World, T, bool> predicate) where T : struct
+        => View<T>().All(ent => predicate(this, GetComp<T>(ent)));
 
     public record struct EntityEnumerable(World _world, IEnumerable<Type> _types)
         : IEnumerator<Entity>, IEnumerable<Entity>
