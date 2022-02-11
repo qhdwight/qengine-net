@@ -42,7 +42,11 @@ public partial class World
         => HasComp(entity, typeof(T));
 
     public bool HasView(Entity entity, IEnumerable<Type> types)
-        => types.All(type => HasComp(entity, type));
+    {
+        foreach (Type type in types)
+            if (!HasComp(entity, type)) return false;
+        return true;
+    }
 
     public EntityEnumerable View(IEnumerable<Type> types) => new(this, types);
 
@@ -71,5 +75,10 @@ public partial class World
     }
 
     public bool All<T>(Func<World, T, bool> predicate)
-        => View<T>().All(ent => predicate(this, GetComp<T>(ent)));
+    {
+        foreach (Entity ent in View<T>())
+            if (!predicate(this, GetComp<T>(ent)))
+                return false;
+        return true;
+    }
 }

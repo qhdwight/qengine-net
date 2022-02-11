@@ -146,17 +146,16 @@ internal static unsafe partial class VulkanGraphics
         graphics.vk!.FreeCommandBuffers(graphics.device, graphics.commandPool, 1, commandBuffer);
     }
 
-    private static void UpdateUniformBuffer(ref VkGraphics graphics, uint currentImage)
+    private static void UpdateUniformBuffer(ref VkGraphics graphics, in DrawInfo drawInfo, uint currentImage)
     {
-        var time = (float)graphics.window!.Time;
-
         float ratio = (float)graphics.swapChainExtent.Width / graphics.swapChainExtent.Height;
         UniformBufferObject ubo = new()
         {
-            model = Matrix4X4<float>.Identity * Matrix4X4.CreateFromAxisAngle(new Vector3D<float>(0, 0, 1), time * Scalar.DegreesToRadians(90.0f)),
-            view = Matrix4X4.CreateLookAt(new Vector3D<float>(2, 2, 2),
-                                          new Vector3D<float>(0, 0, 0),
-                                          new Vector3D<float>(0, 0, 1)),
+            // model = Matrix4X4.CreateFromAxisAngle(new Vector3D<float>(0, 0, 1), time * Scalar.DegreesToRadians(90.0f)),
+            model = Matrix4X4<float>.Identity,
+            view = Matrix4X4.CreateLookAt((Vector3D<float>) drawInfo.Position,
+                                          (Vector3D<float>)(drawInfo.Position + drawInfo.Forward),
+                                          new Vector3D<float>{Z = 1.0f}),
             proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(45.0f), ratio, 0.1f, 10.0f),
         };
         ubo.proj.M22 *= -1;

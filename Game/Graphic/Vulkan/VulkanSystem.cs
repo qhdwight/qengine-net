@@ -14,15 +14,6 @@ public class VulkanSystem : ISystem
                 VulkanGraphics.InitVulkan(ref graphics);
             IWindow window = graphics.window!;
 
-            void OnFrame()
-            {
-                window.DoEvents();
-                if (!window.IsClosing) window.DoUpdate();
-                if (window.IsClosing) return;
-                Render(world);
-            }
-
-            window.Run(OnFrame);
             window.DoEvents();
 
             if (window.IsClosing)
@@ -36,6 +27,10 @@ public class VulkanSystem : ISystem
                 }
                 VulkanGraphics.CleanUp(ref graphics);
             }
+            else
+            {
+                Render(world);
+            }
         }
     }
 
@@ -43,8 +38,16 @@ public class VulkanSystem : ISystem
     {
         foreach (Entity graphicsEnt in world.View<VkGraphics>())
         {
+            var drawInfo = new DrawInfo();
+            foreach (Entity playerEnt in world.View<Player>())
+            {
+                var player = world.GetComp<Player>(playerEnt);
+                drawInfo.Position = player.Position;
+                drawInfo.EulerOrientation = player.EulerOrientation;
+                break;
+            }
             ref VkGraphics graphics = ref world.GetComp<VkGraphics>(graphicsEnt);
-            if (VulkanGraphics.TryBeginDraw(ref graphics, out uint imgIdx))
+            if (VulkanGraphics.TryBeginDraw(ref graphics, drawInfo, out uint imgIdx))
             {
                 foreach (Entity ent in world.View<Mesh, VkMesh>())
                 {

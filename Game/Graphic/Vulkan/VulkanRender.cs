@@ -1,4 +1,5 @@
 using System;
+using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -6,7 +7,7 @@ namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    internal static bool TryBeginDraw(ref VkGraphics graphics, out uint imageIndex)
+    internal static bool TryBeginDraw(ref VkGraphics graphics, in DrawInfo drawInfo, out uint imageIndex)
     {
         imageIndex = uint.MaxValue;
         graphics.vk!.WaitForFences(graphics.device, 1, graphics.inFlightFences![graphics.currentFrame], true, ulong.MaxValue);
@@ -22,7 +23,7 @@ internal static unsafe partial class VulkanGraphics
         if (result != Result.Success && result != Result.SuboptimalKhr)
             throw new Exception("Failed to acquire swap chain image!");
 
-        UpdateUniformBuffer(ref graphics, imageIndex);
+        UpdateUniformBuffer(ref graphics, drawInfo, imageIndex);
         return true;
     }
 
@@ -90,13 +91,13 @@ internal static unsafe partial class VulkanGraphics
         Buffer* vertexBuffersPtr = stackalloc Buffer[] { vkMesh.vertexBuffer };
 
         Vk vk = graphics.vk!;
-        
+
         ClearValue* clearColors = stackalloc ClearValue[]
         {
             new() { Color = new ClearColorValue { Float32_0 = 0, Float32_1 = 0, Float32_2 = 0, Float32_3 = 1 } },
             new() { DepthStencil = new ClearDepthStencilValue { Depth = 1, Stencil = 0 } }
         };
-        
+
         for (var i = 0; i < graphics.commandBuffers!.Length; i++)
         {
             ref CommandBuffer cmdBuf = ref graphics.commandBuffers[i];

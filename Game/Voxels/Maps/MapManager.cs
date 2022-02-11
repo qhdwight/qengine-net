@@ -17,6 +17,7 @@ public class MapManager
     {
         Chunks[Vector3Int.Zero] = new Chunk(Vector3Int.Zero);
         Chunks[Vector3Int.Zero].Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.Zero);
+        Chunks[Vector3Int.Zero].Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.One);
     }
 
     public bool TryGetVoxel(in Vector3Int position, out Voxel voxel, Chunk? chunk = null)

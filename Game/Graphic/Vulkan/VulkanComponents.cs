@@ -1,3 +1,4 @@
+using Silk.NET.Input;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
@@ -18,6 +19,7 @@ internal record struct VkMesh
 internal record struct VkGraphics
 {
     internal IWindow? window;
+    internal IInputContext? input;
     internal Vk? vk;
 
     internal Instance instance;
