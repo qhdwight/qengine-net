@@ -78,34 +78,76 @@ internal static unsafe partial class VulkanGraphics
     {
         graphics.swapChainImageViews = new ImageView[graphics.swapChainImages!.Length];
 
-        for (var i = 0; i < graphics.swapChainImages.Length; i++)
-        {
-            ImageViewCreateInfo createInfo = new()
-            {
-                SType = StructureType.ImageViewCreateInfo,
-                Image = graphics.swapChainImages[i],
-                ViewType = ImageViewType.ImageViewType2D,
-                Format = graphics.swapChainImageFormat,
-                Components =
-                {
-                    R = ComponentSwizzle.Identity,
-                    G = ComponentSwizzle.Identity,
-                    B = ComponentSwizzle.Identity,
-                    A = ComponentSwizzle.Identity
-                },
-                SubresourceRange =
-                {
-                    AspectMask = ImageAspectFlags.ImageAspectColorBit,
-                    BaseMipLevel = 0,
-                    LevelCount = 1,
-                    BaseArrayLayer = 0,
-                    LayerCount = 1
-                }
-            };
+        for (var i = 0; i < graphics.swapChainImages!.Length; i++)
+            graphics.swapChainImageViews![i] = CreateImageView(ref graphics, graphics.swapChainImages[i], graphics.swapChainImageFormat, ImageAspectFlags.ImageAspectColorBit);
+    }
 
-            if (graphics.vk!.CreateImageView(graphics.device, createInfo, null, out graphics.swapChainImageViews[i]) != Result.Success)
-                throw new Exception("Failed to create image views!");
-        }
+    private static ImageView CreateImageView(ref VkGraphics graphics, Image image, Format format, ImageAspectFlags aspectFlags)
+    {
+        ImageViewCreateInfo createInfo = new()
+        {
+            SType = StructureType.ImageViewCreateInfo,
+            Image = image,
+            ViewType = ImageViewType.ImageViewType2D,
+            Format = format,
+            SubresourceRange =
+            {
+                AspectMask = aspectFlags,
+                BaseMipLevel = 0,
+                LevelCount = 1,
+                BaseArrayLayer = 0,
+                LayerCount = 1
+            }
+        };
+
+        if (graphics.vk!.CreateImageView(graphics.device, createInfo, null, out ImageView imageView) != Result.Success)
+            throw new Exception("Failed to create image views!");
+
+        return imageView;
+    }
+
+    private static void CreateImage(ref VkGraphics graphics, uint width, uint height, Format format,
+                                    ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties,
+                                    ref Image image, ref DeviceMemory imageMemory)
+    {
+        ImageCreateInfo imageInfo = new()
+        {
+            SType = StructureType.ImageCreateInfo,
+            ImageType = ImageType.ImageType2D,
+            Extent =
+            {
+                Width = width,
+                Height = height,
+                Depth = 1
+            },
+            MipLevels = 1,
+            ArrayLayers = 1,
+            Format = format,
+            Tiling = tiling,
+            InitialLayout = ImageLayout.Undefined,
+            Usage = usage,
+            Samples = SampleCountFlags.SampleCount1Bit,
+            SharingMode = SharingMode.Exclusive
+        };
+
+        fixed (Image* imagePtr = &image)
+            if (graphics.vk!.CreateImage(graphics.device, imageInfo, null, imagePtr) != Result.Success)
+                throw new Exception("failed to create image!");
+
+        graphics.vk!.GetImageMemoryRequirements(graphics.device, image, out MemoryRequirements memRequirements);
+
+        MemoryAllocateInfo allocInfo = new()
+        {
+            SType = StructureType.MemoryAllocateInfo,
+            AllocationSize = memRequirements.Size,
+            MemoryTypeIndex = FindMemoryType(ref graphics, memRequirements.MemoryTypeBits, properties)
+        };
+
+        fixed (DeviceMemory* imageMemoryPtr = &imageMemory)
+            if (graphics.vk!.AllocateMemory(graphics.device, allocInfo, null, imageMemoryPtr) != Result.Success)
+                throw new Exception("failed to allocate image memory!");
+
+        graphics.vk!.BindImageMemory(graphics.device, image, imageMemory, 0);
     }
 
     private static SurfaceFormatKHR ChooseSwapSurfaceFormat(IReadOnlyList<SurfaceFormatKHR> availableFormats)
@@ -181,11 +223,12 @@ internal static unsafe partial class VulkanGraphics
 
         return details;
     }
-    
+
     private static void RecreateSwapChain(ref VkGraphics graphics)
     {
         Vector2D<int> framebufferSize = graphics.window!.FramebufferSize;
 
+        // TODO: fix, should still be going game loop
         while (framebufferSize.X == 0 || framebufferSize.Y == 0)
         {
             framebufferSize = graphics.window.FramebufferSize;
@@ -200,6 +243,7 @@ internal static unsafe partial class VulkanGraphics
         CreateImageViews(ref graphics);
         CreateRenderPass(ref graphics);
         CreateGraphicsPipeline(ref graphics);
+        CreateDepthResources(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateUniformBuffers(ref graphics);
         CreateDescriptorPool(ref graphics);
@@ -211,33 +255,33 @@ internal static unsafe partial class VulkanGraphics
 
     private static void CleanUpSwapChain(ref VkGraphics graphics)
     {
+        Vk vk = graphics.vk!;
+
+        vk.DestroyImageView(graphics.device, graphics.depthImageView, null);
+        vk.DestroyImage(graphics.device, graphics.depthImage, null);
+        vk.FreeMemory(graphics.device, graphics.depthImageMemory, null);
+
         foreach (Framebuffer framebuffer in graphics.swapChainFramebuffers!)
-        {
-            graphics.vk!.DestroyFramebuffer(graphics.device, framebuffer, null);
-        }
+            vk.DestroyFramebuffer(graphics.device, framebuffer, null);
 
         fixed (CommandBuffer* commandBuffersPtr = graphics.commandBuffers)
-        {
-            graphics.vk!.FreeCommandBuffers(graphics.device, graphics.commandPool, (uint)graphics.commandBuffers!.Length, commandBuffersPtr);
-        }
+            vk.FreeCommandBuffers(graphics.device, graphics.commandPool, (uint)graphics.commandBuffers!.Length, commandBuffersPtr);
 
-        graphics.vk!.DestroyPipeline(graphics.device, graphics.graphicsPipeline, null);
-        graphics.vk!.DestroyPipelineLayout(graphics.device, graphics.pipelineLayout, null);
-        graphics.vk!.DestroyRenderPass(graphics.device, graphics.renderPass, null);
+        vk.DestroyPipeline(graphics.device, graphics.graphicsPipeline, null);
+        vk.DestroyPipelineLayout(graphics.device, graphics.pipelineLayout, null);
+        vk.DestroyRenderPass(graphics.device, graphics.renderPass, null);
 
         foreach (ImageView imageView in graphics.swapChainImageViews!)
-        {
-            graphics.vk!.DestroyImageView(graphics.device, imageView, null);
-        }
+            vk.DestroyImageView(graphics.device, imageView, null);
 
         graphics.khrSwapChain!.DestroySwapchain(graphics.device, graphics.swapChain, null);
 
         for (var i = 0; i < graphics.swapChainImages!.Length; i++)
         {
-            graphics.vk!.DestroyBuffer(graphics.device, graphics.uniformBuffers![i], null);
-            graphics.vk!.FreeMemory(graphics.device, graphics.uniformBuffersMemory![i], null);
+            vk.DestroyBuffer(graphics.device, graphics.uniformBuffers![i], null);
+            vk.FreeMemory(graphics.device, graphics.uniformBuffersMemory![i], null);
         }
 
-        graphics.vk!.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
+        vk.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
     }
 }

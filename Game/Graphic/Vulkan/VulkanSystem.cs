@@ -1,10 +1,9 @@
 using Game.ECS;
-using Game.Graphic.Vulkan;
 using Silk.NET.Windowing;
 
-namespace Game.Graphic;
+namespace Game.Graphic.Vulkan;
 
-public class GraphicsSystem : ISystem
+public class VulkanSystem : ISystem
 {
     public void Execute(World world)
     {
@@ -30,6 +29,11 @@ public class GraphicsSystem : ISystem
             {
                 window.Reset();
                 world.GetComp<WantsQuit>(ent).Value = true;
+                foreach (Entity meshEnt in world.View<VkMesh>())
+                {
+                    ref VkMesh vkMesh = ref world.GetComp<VkMesh>(meshEnt);
+                    VulkanGraphics.CleanupMeshBuffers(ref graphics, ref vkMesh);
+                }
                 VulkanGraphics.CleanUp(ref graphics);
             }
         }
@@ -37,10 +41,19 @@ public class GraphicsSystem : ISystem
 
     private static void Render(World world)
     {
-        foreach (Entity ent in world.View<VkGraphics>())
+        foreach (Entity graphicsEnt in world.View<VkGraphics>())
         {
-            ref VkGraphics graphics = ref world.GetComp<VkGraphics>(ent);
-            VulkanGraphics.Render(ref graphics);
+            ref VkGraphics graphics = ref world.GetComp<VkGraphics>(graphicsEnt);
+            if (VulkanGraphics.TryBeginDraw(ref graphics, out uint imgIdx))
+            {
+                foreach (Entity ent in world.View<Mesh, VkMesh>())
+                {
+                    ref Mesh mesh = ref world.GetComp<Mesh>(ent);
+                    ref VkMesh vkMesh = ref world.GetComp<VkMesh>(ent);
+                    VulkanGraphics.Draw(ref graphics, mesh, ref vkMesh);
+                }
+                VulkanGraphics.EndDraw(ref graphics, imgIdx);
+            }
         }
     }
 }

@@ -5,6 +5,16 @@ using Silk.NET.Windowing;
 
 namespace Game.Graphic.Vulkan;
 
+internal record struct VkMesh
+{
+    internal Buffer vertexBuffer;
+    internal uint vertexBufferSize;
+    internal DeviceMemory vertexBufferMemory;
+    internal Buffer indexBuffer;
+    internal uint indexBufferSize;
+    internal DeviceMemory indexBufferMemory;
+}
+
 internal record struct VkGraphics
 {
     internal IWindow? window;
@@ -31,17 +41,16 @@ internal record struct VkGraphics
     internal ImageView[]? swapChainImageViews;
     internal Framebuffer[]? swapChainFramebuffers;
 
+    internal Image depthImage;
+    internal DeviceMemory depthImageMemory;
+    internal ImageView depthImageView;
+    
     internal RenderPass renderPass;
     internal DescriptorSetLayout descriptorSetLayout;
     internal PipelineLayout pipelineLayout;
     internal Pipeline graphicsPipeline;
 
     internal CommandPool commandPool;
-
-    internal Buffer vertexBuffer;
-    internal DeviceMemory vertexBufferMemory;
-    internal Buffer indexBuffer;
-    internal DeviceMemory indexBufferMemory;
 
     internal Buffer[]? uniformBuffers;
     internal DeviceMemory[]? uniformBuffersMemory;

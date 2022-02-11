@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Silk.NET.Maths;
 
 namespace Game.Voxels;
@@ -39,6 +40,7 @@ public record struct BoundingBox
         Center = min + Extents;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Encapsulate(in Vector3Int point)
         => SetMinMax(Vector3D.Min(Min, point), Vector3D.Max(Max, point));
 
@@ -54,15 +56,18 @@ public record struct BoundingBox
         Extents += new Vector3Int(amount, amount, amount);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Expand(in Vector3Int amount) => Extents += amount / 2;
 
-    public readonly bool Contains(in Vector3Int point) => Min.X <= point.X && Max.X >= point.X &&
-                                                          Min.Y <= point.Y && Max.Y >= point.Y &&
-                                                          Min.Z <= point.Z && Max.Z >= point.Z;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Contains(Vector3Int point) => Min.X <= point.X && Max.X >= point.X &&
+                                              Min.Y <= point.Y && Max.Y >= point.Y &&
+                                              Min.Z <= point.Z && Max.Z >= point.Z;
 
-    public readonly bool Intersects(in BoundingBox box) => Min.X <= box.Max.X && Max.X >= box.Min.X &&
-                                                           Min.Y <= box.Max.Y && Max.Y >= box.Min.Y &&
-                                                           Min.Z <= box.Max.Z && Max.Z >= box.Min.Z;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(BoundingBox box) => Min.X <= box.Max.X && Max.X >= box.Min.X &&
+                                               Min.Y <= box.Max.Y && Max.Y >= box.Min.Y &&
+                                               Min.Z <= box.Max.Z && Max.Z >= box.Min.Z;
 
     // public bool IntersectRay(Ray ray)
     // {

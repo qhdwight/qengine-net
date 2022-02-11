@@ -1,3 +1,13 @@
+using System;
+using Silk.NET.Maths;
+
 namespace Game.Voxels;
 
-public record struct Voxel();
+[Flags]
+public enum VoxelFlags
+{
+    None = 0,
+    IsBlock = 1
+}
+
+public record struct Voxel(VoxelFlags Flags, byte Density, Vector4D<byte> Color);

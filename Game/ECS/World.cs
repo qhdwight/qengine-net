@@ -6,11 +6,10 @@ using System.Linq;
 
 namespace Game.ECS;
 
-public class World
+public partial class World
 {
     private readonly Dictionary<Type, StorageBase> _components = new();
     private readonly List<Entity> _entities = new();
-    private readonly List<Type> _cachedTypes = new(4);
 
     public Entity AddEntity()
     {
@@ -36,76 +35,41 @@ public class World
         return ref storage.Get(entity);
     }
 
+    public bool HasComp(Entity entity, Type type)
+        => _components.TryGetValue(type, out StorageBase? storage) && storage.With(entity);
+
+    public bool HasComp<T>(Entity entity)
+        => HasComp(entity, typeof(T));
+
     public bool HasView(Entity entity, IEnumerable<Type> types)
-        => types.All(type => _components[type].With(entity));
+        => types.All(type => HasComp(entity, type));
 
     public EntityEnumerable View(IEnumerable<Type> types) => new(this, types);
 
     public EntityEnumerable View<T>()
     {
-        _cachedTypes.Clear();
-        _cachedTypes.Add(typeof(T));
-        return new EntityEnumerable(this, _cachedTypes);
+        Type[] types = { typeof(T) };
+        return new EntityEnumerable(this, types);
     }
 
     public EntityEnumerable View<T1, T2>()
     {
-        _cachedTypes.Clear();
-        _cachedTypes.Add(typeof(T1));
-        _cachedTypes.Add(typeof(T2));
-        return new EntityEnumerable(this, _cachedTypes);
+        Type[] types = { typeof(T1), typeof(T2) };
+        return new EntityEnumerable(this, types);
     }
 
     public EntityEnumerable View<T1, T2, T3>()
     {
-        _cachedTypes.Clear();
-        _cachedTypes.Add(typeof(T1));
-        _cachedTypes.Add(typeof(T2));
-        _cachedTypes.Add(typeof(T3));
-        return new EntityEnumerable(this, _cachedTypes);
+        Type[] types = { typeof(T1), typeof(T2), typeof(T3) };
+        return new EntityEnumerable(this, types);
     }
 
     public EntityEnumerable View<T1, T2, T3, T4>()
     {
-        _cachedTypes.Clear();
-        _cachedTypes.Add(typeof(T1));
-        _cachedTypes.Add(typeof(T2));
-        _cachedTypes.Add(typeof(T3));
-        _cachedTypes.Add(typeof(T4));
-        return new EntityEnumerable(this, _cachedTypes);
+        Type[] types = { typeof(T1), typeof(T2), typeof(T3), typeof(T4) };
+        return new EntityEnumerable(this, types);
     }
 
-    public bool All<T>(Func<World, T, bool> predicate) where T : struct
+    public bool All<T>(Func<World, T, bool> predicate)
         => View<T>().All(ent => predicate(this, GetComp<T>(ent)));
-
-    public record struct EntityEnumerable(World _world, IEnumerable<Type> _types)
-        : IEnumerator<Entity>, IEnumerable<Entity>
-    {
-        private readonly World _world = _world;
-        private readonly IEnumerable<Type> _types = _types;
-        private int _headIndex = 0;
-
-        public bool MoveNext()
-        {
-            while (_headIndex < _world._entities.Count)
-            {
-                Entity entity = _world._entities[_headIndex++];
-                if (_world.HasView(entity, _types))
-                    return true;
-            }
-            return false;
-        }
-
-        public void Reset() => _headIndex = 0;
-
-        public Entity Current => _world._entities[_headIndex - 1];
-
-        object IEnumerator.Current => Current;
-
-        IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => this;
-
-        public IEnumerator GetEnumerator() => this;
-
-        public void Dispose() { }
-    }
 }

@@ -1,15 +1,15 @@
 using System;
 using Silk.NET.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    public static void Render(ref VkGraphics graphics)
+    internal static bool TryBeginDraw(ref VkGraphics graphics, out uint imageIndex)
     {
+        imageIndex = uint.MaxValue;
         graphics.vk!.WaitForFences(graphics.device, 1, graphics.inFlightFences![graphics.currentFrame], true, ulong.MaxValue);
-
-        uint imageIndex = 0;
         Result result = graphics.khrSwapChain!.AcquireNextImage(graphics.device, graphics.swapChain, ulong.MaxValue,
                                                                 graphics.imageAvailableSemaphores![graphics.currentFrame], default,
                                                                 ref imageIndex);
@@ -17,13 +17,17 @@ internal static unsafe partial class VulkanGraphics
         if (result == Result.ErrorOutOfDateKhr)
         {
             RecreateSwapChain(ref graphics);
-            return;
+            return false;
         }
         if (result != Result.Success && result != Result.SuboptimalKhr)
             throw new Exception("Failed to acquire swap chain image!");
 
         UpdateUniformBuffer(ref graphics, imageIndex);
+        return true;
+    }
 
+    internal static void EndDraw(ref VkGraphics graphics, uint imageIndex)
+    {
         if (graphics.imagesInFlight![imageIndex].Handle != default)
             graphics.vk!.WaitForFences(graphics.device, 1, graphics.imagesInFlight[imageIndex], true, ulong.MaxValue);
         graphics.imagesInFlight[imageIndex] = graphics.inFlightFences![graphics.currentFrame];
@@ -76,5 +80,74 @@ internal static unsafe partial class VulkanGraphics
         graphics.currentFrame = (graphics.currentFrame + 1) % MaxFramesInFlight;
 
         graphics.vk!.DeviceWaitIdle(graphics.device);
+    }
+
+    internal static void Draw(ref VkGraphics graphics, in Mesh mesh, ref VkMesh vkMesh)
+    {
+        SyncMeshBuffers(ref graphics, mesh, ref vkMesh);
+
+        ulong* offsetsPtr = stackalloc ulong[] { 0 };
+        Buffer* vertexBuffersPtr = stackalloc Buffer[] { vkMesh.vertexBuffer };
+
+        Vk vk = graphics.vk!;
+        
+        ClearValue* clearColors = stackalloc ClearValue[]
+        {
+            new() { Color = new ClearColorValue { Float32_0 = 0, Float32_1 = 0, Float32_2 = 0, Float32_3 = 1 } },
+            new() { DepthStencil = new ClearDepthStencilValue { Depth = 1, Stencil = 0 } }
+        };
+        
+        for (var i = 0; i < graphics.commandBuffers!.Length; i++)
+        {
+            ref CommandBuffer cmdBuf = ref graphics.commandBuffers[i];
+
+            CommandBufferBeginInfo beginInfo = new() { SType = StructureType.CommandBufferBeginInfo };
+
+            if (vk.BeginCommandBuffer(cmdBuf, beginInfo) != Result.Success)
+                throw new Exception("Failed to begin recording command buffer!");
+
+            RenderPassBeginInfo renderPassInfo = new()
+            {
+                SType = StructureType.RenderPassBeginInfo,
+                RenderPass = graphics.renderPass,
+                Framebuffer = graphics.swapChainFramebuffers![i],
+                RenderArea =
+                {
+                    Offset = { X = 0, Y = 0 },
+                    Extent = graphics.swapChainExtent
+                }
+            };
+
+            renderPassInfo.ClearValueCount = 2;
+            renderPassInfo.PClearValues = clearColors;
+
+            vk.CmdBeginRenderPass(cmdBuf, &renderPassInfo, SubpassContents.Inline);
+            vk.CmdBindPipeline(cmdBuf, PipelineBindPoint.Graphics, graphics.graphicsPipeline);
+
+            vk.CmdBindVertexBuffers(cmdBuf, 0, 1, vertexBuffersPtr, offsetsPtr);
+            vk.CmdBindIndexBuffer(cmdBuf, vkMesh.indexBuffer, 0, IndexType.Uint32);
+            vk.CmdBindDescriptorSets(cmdBuf, PipelineBindPoint.Graphics, graphics.pipelineLayout, 0, 1, graphics.descriptorSets![i], 0, null);
+            vk.CmdDrawIndexed(cmdBuf, vkMesh.indexBufferSize, 1, 0, 0, 0);
+
+            vk.CmdEndRenderPass(graphics.commandBuffers![i]);
+            if (vk.EndCommandBuffer(cmdBuf) != Result.Success)
+                throw new Exception("Failed to record command buffer!");
+        }
+    }
+
+    private static void SyncMeshBuffers(ref VkGraphics graphics, in Mesh mesh, ref VkMesh vkMesh)
+    {
+        if (vkMesh.indexBufferSize < mesh.indices.Count)
+        {
+            if (vkMesh.indexBuffer.Handle != default)
+                FreeMeshIndexBuffer(ref graphics, ref vkMesh);
+            CreateIndexBuffer(ref graphics, ref vkMesh, mesh);
+        }
+        if (vkMesh.vertexBufferSize < mesh.vertices.Count)
+        {
+            if (vkMesh.vertexBuffer.Handle != default)
+                FreeMeshVertexBuffer(ref graphics, ref vkMesh);
+            CreateVertexBuffer(ref graphics, ref vkMesh, mesh);
+        }
     }
 }

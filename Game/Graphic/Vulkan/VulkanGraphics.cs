@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -74,15 +75,40 @@ internal static unsafe partial class VulkanGraphics
         CreateRenderPass(ref graphics);
         CreateDescriptorSetLayout(ref graphics);
         CreateGraphicsPipeline(ref graphics);
+        CreateDepthResources(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateCommandPool(ref graphics);
-        CreateVertexBuffer(ref graphics);
-        CreateIndexBuffer(ref graphics);
         CreateUniformBuffers(ref graphics);
         CreateDescriptorPool(ref graphics);
         CreateDescriptorSets(ref graphics);
         CreateCommandBuffers(ref graphics);
         CreateSyncObjects(ref graphics);
+    }
+
+    internal static void CleanupMeshBuffers(ref VkGraphics graphics, ref VkMesh vkMesh)
+    {
+        FreeMeshVertexBuffer(ref graphics, ref vkMesh);
+        FreeMeshIndexBuffer(ref graphics, ref vkMesh);
+    }
+    
+    internal static void FreeMeshVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
+    {
+        Debug.Assert(vkMesh.vertexBuffer.Handle != default);
+        Debug.Assert(vkMesh.vertexBufferMemory.Handle != default);
+        graphics.vk!.DestroyBuffer(graphics.device, vkMesh.vertexBuffer, null);
+        graphics.vk!.FreeMemory(graphics.device, vkMesh.vertexBufferMemory, null);
+        vkMesh.vertexBuffer = default;
+        vkMesh.vertexBufferMemory = default;
+    }
+    
+    internal static void FreeMeshIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
+    {
+        Debug.Assert(vkMesh.indexBuffer.Handle != default);
+        Debug.Assert(vkMesh.indexBufferMemory.Handle != default);
+        graphics.vk!.DestroyBuffer(graphics.device, vkMesh.indexBuffer, null);
+        graphics.vk!.FreeMemory(graphics.device, vkMesh.indexBufferMemory, null);
+        vkMesh.indexBuffer = default;
+        vkMesh.indexBufferMemory = default;
     }
 
     internal static void CleanUp(ref VkGraphics graphics)
@@ -91,22 +117,16 @@ internal static unsafe partial class VulkanGraphics
 
         graphics.vk!.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
 
-        graphics.vk!.DestroyBuffer(graphics.device, graphics.indexBuffer, null);
-        graphics.vk!.FreeMemory(graphics.device, graphics.indexBufferMemory, null);
-
-        graphics.vk!.DestroyBuffer(graphics.device, graphics.vertexBuffer, null);
-        graphics.vk!.FreeMemory(graphics.device, graphics.vertexBufferMemory, null);
-
         for (var i = 0; i < MaxFramesInFlight; i++)
         {
-            graphics.vk!.DestroySemaphore(graphics.device, graphics.renderFinishedSemaphores![i], null);
-            graphics.vk!.DestroySemaphore(graphics.device, graphics.imageAvailableSemaphores![i], null);
-            graphics.vk!.DestroyFence(graphics.device, graphics.inFlightFences![i], null);
+            graphics.vk.DestroySemaphore(graphics.device, graphics.renderFinishedSemaphores![i], null);
+            graphics.vk.DestroySemaphore(graphics.device, graphics.imageAvailableSemaphores![i], null);
+            graphics.vk.DestroyFence(graphics.device, graphics.inFlightFences![i], null);
         }
 
-        graphics.vk!.DestroyCommandPool(graphics.device, graphics.commandPool, null);
+        graphics.vk.DestroyCommandPool(graphics.device, graphics.commandPool, null);
 
-        graphics.vk!.DestroyDevice(graphics.device, null);
+        graphics.vk.DestroyDevice(graphics.device, null);
 
         if (EnableValidationLayers)
         {

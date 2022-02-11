@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
@@ -20,35 +21,55 @@ internal static unsafe partial class VulkanGraphics
             InitialLayout = ImageLayout.Undefined,
             FinalLayout = ImageLayout.PresentSrcKhr
         };
+        
+        AttachmentDescription depthAttachment = new()
+        {
+            Format = FindDepthFormat(ref graphics),
+            Samples = SampleCountFlags.SampleCount1Bit,
+            LoadOp = AttachmentLoadOp.Clear,
+            StoreOp = AttachmentStoreOp.DontCare,
+            StencilLoadOp = AttachmentLoadOp.DontCare,
+            StencilStoreOp = AttachmentStoreOp.DontCare,
+            InitialLayout = ImageLayout.Undefined,
+            FinalLayout= ImageLayout.DepthStencilAttachmentOptimal
+        };
 
         AttachmentReference colorAttachmentRef = new()
         {
             Attachment = 0,
             Layout = ImageLayout.ColorAttachmentOptimal
         };
+        
+        AttachmentReference depthAttachmentRef = new()
+        {
+            Attachment = 1,
+            Layout = ImageLayout.DepthStencilAttachmentOptimal
+        };
 
         SubpassDescription subpass = new()
         {
             PipelineBindPoint = PipelineBindPoint.Graphics,
             ColorAttachmentCount = 1,
-            PColorAttachments = &colorAttachmentRef
+            PColorAttachments = &colorAttachmentRef,
+            PDepthStencilAttachment = &depthAttachmentRef
         };
 
         SubpassDependency dependency = new()
         {
             SrcSubpass = Vk.SubpassExternal,
             DstSubpass = 0,
-            SrcStageMask = PipelineStageFlags.PipelineStageColorAttachmentOutputBit,
+            SrcStageMask = PipelineStageFlags.PipelineStageColorAttachmentOutputBit | PipelineStageFlags.PipelineStageEarlyFragmentTestsBit,
             SrcAccessMask = 0,
-            DstStageMask = PipelineStageFlags.PipelineStageColorAttachmentOutputBit,
-            DstAccessMask = AccessFlags.AccessColorAttachmentWriteBit
+            DstStageMask = PipelineStageFlags.PipelineStageColorAttachmentOutputBit | PipelineStageFlags.PipelineStageEarlyFragmentTestsBit,
+            DstAccessMask = AccessFlags.AccessColorAttachmentWriteBit | AccessFlags.AccessDepthStencilAttachmentWriteBit
         };
 
+        AttachmentDescription* attachments = stackalloc AttachmentDescription[] { colorAttachment, depthAttachment };
         RenderPassCreateInfo renderPassInfo = new()
         {
             SType = StructureType.RenderPassCreateInfo,
-            AttachmentCount = 1,
-            PAttachments = &colorAttachment,
+            AttachmentCount = 2,
+            PAttachments = attachments,
             SubpassCount = 1,
             PSubpasses = &subpass,
             DependencyCount = 1,
@@ -63,7 +84,7 @@ internal static unsafe partial class VulkanGraphics
     {
         byte[] vertShaderCode = Resources.TriangleVert;
         byte[] fragShaderCode = Resources.TriangleFrag;
-
+        
         ShaderModule vertShaderModule = CreateShaderModule(ref graphics, vertShaderCode);
         ShaderModule fragShaderModule = CreateShaderModule(ref graphics, fragShaderCode);
 
@@ -101,14 +122,14 @@ internal static unsafe partial class VulkanGraphics
                 VertexBindingDescriptionCount = 1,
                 VertexAttributeDescriptionCount = (uint)attributeDescriptions.Length,
                 PVertexBindingDescriptions = &bindingDescription,
-                PVertexAttributeDescriptions = attributeDescriptionsPtr,
+                PVertexAttributeDescriptions = attributeDescriptionsPtr
             };
 
             PipelineInputAssemblyStateCreateInfo inputAssembly = new()
             {
                 SType = StructureType.PipelineInputAssemblyStateCreateInfo,
                 Topology = PrimitiveTopology.TriangleList,
-                PrimitiveRestartEnable = false,
+                PrimitiveRestartEnable = false
             };
 
             Viewport viewport = new()
@@ -118,13 +139,13 @@ internal static unsafe partial class VulkanGraphics
                 Width = graphics.swapChainExtent.Width,
                 Height = graphics.swapChainExtent.Height,
                 MinDepth = 0,
-                MaxDepth = 1,
+                MaxDepth = 1
             };
 
             Rect2D scissor = new()
             {
                 Offset = { X = 0, Y = 0 },
-                Extent = graphics.swapChainExtent,
+                Extent = graphics.swapChainExtent
             };
 
             PipelineViewportStateCreateInfo viewportState = new()
@@ -133,7 +154,7 @@ internal static unsafe partial class VulkanGraphics
                 ViewportCount = 1,
                 PViewports = &viewport,
                 ScissorCount = 1,
-                PScissors = &scissor,
+                PScissors = &scissor
             };
 
             PipelineRasterizationStateCreateInfo rasterizer = new()
@@ -145,21 +166,33 @@ internal static unsafe partial class VulkanGraphics
                 LineWidth = 1,
                 CullMode = CullModeFlags.CullModeBackBit,
                 FrontFace = FrontFace.CounterClockwise,
-                DepthBiasEnable = false,
+                DepthBiasEnable = false
             };
 
             PipelineMultisampleStateCreateInfo multisampling = new()
             {
                 SType = StructureType.PipelineMultisampleStateCreateInfo,
                 SampleShadingEnable = false,
-                RasterizationSamples = SampleCountFlags.SampleCount1Bit,
+                RasterizationSamples = SampleCountFlags.SampleCount1Bit
+            };
+            
+            PipelineDepthStencilStateCreateInfo depthStencil = new()
+            {
+                SType= StructureType.PipelineDepthStencilStateCreateInfo,
+                DepthTestEnable = true,
+                DepthWriteEnable = true,
+                DepthCompareOp = CompareOp.Less,
+                DepthBoundsTestEnable = false,
+                StencilTestEnable = false
             };
 
             PipelineColorBlendAttachmentState colorBlendAttachment = new()
             {
-                ColorWriteMask = ColorComponentFlags.ColorComponentRBit | ColorComponentFlags.ColorComponentGBit | ColorComponentFlags.ColorComponentBBit |
-                                 ColorComponentFlags.ColorComponentABit,
-                BlendEnable = false,
+                ColorWriteMask = ColorComponentFlags.ColorComponentRBit
+                               | ColorComponentFlags.ColorComponentGBit
+                               | ColorComponentFlags.ColorComponentBBit
+                               | ColorComponentFlags.ColorComponentABit,
+                BlendEnable = false
             };
 
             PipelineColorBlendStateCreateInfo colorBlending = new()
@@ -168,7 +201,7 @@ internal static unsafe partial class VulkanGraphics
                 LogicOpEnable = false,
                 LogicOp = LogicOp.Copy,
                 AttachmentCount = 1,
-                PAttachments = &colorBlendAttachment,
+                PAttachments = &colorBlendAttachment
             };
 
             colorBlending.BlendConstants[0] = 0;
@@ -197,6 +230,7 @@ internal static unsafe partial class VulkanGraphics
                 PViewportState = &viewportState,
                 PRasterizationState = &rasterizer,
                 PMultisampleState = &multisampling,
+                PDepthStencilState = &depthStencil,
                 PColorBlendState = &colorBlending,
                 Layout = graphics.pipelineLayout,
                 RenderPass = graphics.renderPass,
@@ -219,15 +253,16 @@ internal static unsafe partial class VulkanGraphics
     {
         graphics.swapChainFramebuffers = new Framebuffer[graphics.swapChainImageViews!.Length];
 
+        ImageView* attachments = stackalloc ImageView[] { default, graphics.depthImageView };
         for (var i = 0; i < graphics.swapChainImageViews.Length; i++)
         {
-            ImageView attachment = graphics.swapChainImageViews[i];
+            attachments[0] = graphics.swapChainImageViews[i];
             var framebufferInfo = new FramebufferCreateInfo
             {
                 SType = StructureType.FramebufferCreateInfo,
                 RenderPass = graphics.renderPass,
-                AttachmentCount = 1,
-                PAttachments = &attachment,
+                AttachmentCount = 2,
+                PAttachments = attachments,
                 Width = graphics.swapChainExtent.Width,
                 Height = graphics.swapChainExtent.Height,
                 Layers = 1
@@ -235,7 +270,7 @@ internal static unsafe partial class VulkanGraphics
 
             var framebuffer = new Framebuffer();
             if (graphics.vk!.CreateFramebuffer(graphics.device, &framebufferInfo, null, &framebuffer) != Result.Success)
-                throw new Exception("failed to create framebuffer!");
+                throw new Exception("Failed to create framebuffer!");
 
             graphics.swapChainFramebuffers[i] = framebuffer;
         }
@@ -248,6 +283,7 @@ internal static unsafe partial class VulkanGraphics
         CommandPoolCreateInfo poolInfo = new()
         {
             SType = StructureType.CommandPoolCreateInfo,
+            Flags = CommandPoolCreateFlags.CommandPoolCreateResetCommandBufferBit,
             QueueFamilyIndex = queueFamilyIndices.GraphicsFamily!.Value
         };
 
@@ -255,6 +291,33 @@ internal static unsafe partial class VulkanGraphics
         {
             throw new Exception("Failed to create command pool!");
         }
+    }
+    
+    private static Format FindDepthFormat(ref VkGraphics graphics)
+        => FindSupportedFormat(ref graphics, new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal, FormatFeatureFlags.FormatFeatureDepthStencilAttachmentBit);
+
+    private static Format FindSupportedFormat(ref VkGraphics graphics, IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
+    {
+        foreach (Format format in candidates)
+        {
+            graphics.vk!.GetPhysicalDeviceFormatProperties(graphics.physicalDevice, format, out FormatProperties props);
+            switch (tiling)
+            {
+                case ImageTiling.Linear when (props.LinearTilingFeatures & features) == features:
+                    return format;
+                case ImageTiling.Optimal when (props.OptimalTilingFeatures & features) == features:
+                    return format;
+            }
+        }
+        throw new Exception("Failed to find supported format!");
+    }
+    
+    private static void CreateDepthResources(ref VkGraphics graphics)
+    {
+        Format depthFormat = FindDepthFormat(ref graphics);
+
+        CreateImage(ref graphics, graphics.swapChainExtent.Width, graphics.swapChainExtent.Height, depthFormat, ImageTiling.Optimal, ImageUsageFlags.ImageUsageDepthStencilAttachmentBit, MemoryPropertyFlags.MemoryPropertyDeviceLocalBit, ref graphics.depthImage, ref graphics.depthImageMemory);
+        graphics.depthImageView = CreateImageView(ref graphics, graphics.depthImage, depthFormat, ImageAspectFlags.ImageAspectDepthBit);
     }
 
     private static void CreateCommandBuffers(ref VkGraphics graphics)
@@ -266,67 +329,12 @@ internal static unsafe partial class VulkanGraphics
             SType = StructureType.CommandBufferAllocateInfo,
             CommandPool = graphics.commandPool,
             Level = CommandBufferLevel.Primary,
-            CommandBufferCount = (uint)graphics.commandBuffers.Length,
+            CommandBufferCount = (uint)graphics.commandBuffers.Length
         };
 
         fixed (CommandBuffer* commandBuffersPtr = graphics.commandBuffers)
             if (graphics.vk!.AllocateCommandBuffers(graphics.device, allocInfo, commandBuffersPtr) != Result.Success)
                 throw new Exception("Failed to allocate command buffers!");
-
-        for (var i = 0; i < graphics.commandBuffers.Length; i++)
-        {
-            CommandBufferBeginInfo beginInfo = new()
-            {
-                SType = StructureType.CommandBufferBeginInfo,
-            };
-
-            if (graphics.vk!.BeginCommandBuffer(graphics.commandBuffers[i], beginInfo) != Result.Success)
-            {
-                throw new Exception("failed to begin recording command buffer!");
-            }
-
-            RenderPassBeginInfo renderPassInfo = new()
-            {
-                SType = StructureType.RenderPassBeginInfo,
-                RenderPass = graphics.renderPass,
-                Framebuffer = graphics.swapChainFramebuffers[i],
-                RenderArea =
-                {
-                    Offset = { X = 0, Y = 0 },
-                    Extent = graphics.swapChainExtent,
-                }
-            };
-
-            ClearValue clearColor = new()
-            {
-                Color = new ClearColorValue { Float32_0 = 0, Float32_1 = 0, Float32_2 = 0, Float32_3 = 1 },
-            };
-
-            renderPassInfo.ClearValueCount = 1;
-            renderPassInfo.PClearValues = &clearColor;
-
-            graphics.vk!.CmdBeginRenderPass(graphics.commandBuffers[i], &renderPassInfo, SubpassContents.Inline);
-
-            graphics.vk!.CmdBindPipeline(graphics.commandBuffers[i], PipelineBindPoint.Graphics, graphics.graphicsPipeline);
-
-            Buffer[] vertexBuffers = { graphics.vertexBuffer };
-            var offsets = new ulong[] { 0 };
-
-            fixed (ulong* offsetsPtr = offsets)
-            fixed (Buffer* vertexBuffersPtr = vertexBuffers)
-                graphics.vk!.CmdBindVertexBuffers(graphics.commandBuffers[i], 0, 1, vertexBuffersPtr, offsetsPtr);
-
-            graphics.vk!.CmdBindIndexBuffer(graphics.commandBuffers[i], graphics.indexBuffer, 0, IndexType.Uint16);
-
-            graphics.vk!.CmdBindDescriptorSets(graphics.commandBuffers[i], PipelineBindPoint.Graphics, graphics.pipelineLayout, 0, 1, graphics.descriptorSets![i], 0, null);
-
-            graphics.vk!.CmdDrawIndexed(graphics.commandBuffers[i], (uint)Indices.Length, 1, 0, 0, 0);
-
-            graphics.vk!.CmdEndRenderPass(graphics.commandBuffers[i]);
-
-            if (graphics.vk!.EndCommandBuffer(graphics.commandBuffers[i]) != Result.Success)
-                throw new Exception("Failed to record command buffer!");
-        }
     }
 
     private static void CreateUniformBuffers(ref VkGraphics graphics)
@@ -350,14 +358,14 @@ internal static unsafe partial class VulkanGraphics
             DescriptorCount = 1,
             DescriptorType = DescriptorType.UniformBuffer,
             PImmutableSamplers = null,
-            StageFlags = ShaderStageFlags.ShaderStageVertexBit,
+            StageFlags = ShaderStageFlags.ShaderStageVertexBit
         };
 
         DescriptorSetLayoutCreateInfo layoutInfo = new()
         {
             SType = StructureType.DescriptorSetLayoutCreateInfo,
             BindingCount = 1,
-            PBindings = &uboLayoutBinding,
+            PBindings = &uboLayoutBinding
         };
 
         fixed (DescriptorSetLayout* descriptorSetLayoutPtr = &graphics.descriptorSetLayout)
@@ -382,10 +390,8 @@ internal static unsafe partial class VulkanGraphics
         };
 
         fixed (DescriptorPool* descriptorPoolPtr = &graphics.descriptorPool)
-        {
             if (graphics.vk!.CreateDescriptorPool(graphics.device, poolInfo, null, descriptorPoolPtr) != Result.Success)
                 throw new Exception("Failed to create descriptor pool!");
-        }
     }
 
     private static void CreateDescriptorSets(ref VkGraphics graphics)

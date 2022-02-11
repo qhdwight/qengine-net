@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -8,47 +9,16 @@ namespace Game.Graphic.Vulkan;
 
 internal static unsafe partial class VulkanGraphics
 {
-    private static readonly Vertex[] Vertices =
+    internal struct UniformBufferObject
     {
-        new() { pos = new Vector2D<float>(-0.5f, -0.5f), color = new Vector3D<float>(1.0f, 0.0f, 0.0f) },
-        new() { pos = new Vector2D<float>(0.5f, -0.5f), color = new Vector3D<float>(0.0f, 1.0f, 0.0f) },
-        new() { pos = new Vector2D<float>(0.5f, 0.5f), color = new Vector3D<float>(0.0f, 0.0f, 1.0f) },
-        new() { pos = new Vector2D<float>(-0.5f, 0.5f), color = new Vector3D<float>(1.0f, 1.0f, 1.0f) },
-    };
-
-    private static readonly ushort[] Indices =
-    {
-        0, 1, 2, 2, 3, 0
-    };
-
-    private static void CreateVertexBuffer(ref VkGraphics graphics)
-    {
-        var bufferSize = (ulong)(Unsafe.SizeOf<Vertex>() * Vertices.Length);
-
-        Buffer stagingBuffer = default;
-        DeviceMemory stagingBufferMemory = default;
-        CreateBuffer(ref graphics, bufferSize, BufferUsageFlags.BufferUsageTransferSrcBit,
-                     MemoryPropertyFlags.MemoryPropertyHostVisibleBit | MemoryPropertyFlags.MemoryPropertyHostCoherentBit,
-                     ref stagingBuffer, ref stagingBufferMemory);
-
-        void* data;
-        graphics.vk!.MapMemory(graphics.device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        Vertices.AsSpan().CopyTo(new Span<Vertex>(data, Vertices.Length));
-        graphics.vk!.UnmapMemory(graphics.device, stagingBufferMemory);
-
-        CreateBuffer(ref graphics, bufferSize, BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageVertexBufferBit,
-                     MemoryPropertyFlags.MemoryPropertyDeviceLocalBit,
-                     ref graphics.vertexBuffer, ref graphics.vertexBufferMemory);
-
-        CopyBuffer(ref graphics, stagingBuffer, graphics.vertexBuffer, bufferSize);
-
-        graphics.vk!.DestroyBuffer(graphics.device, stagingBuffer, null);
-        graphics.vk!.FreeMemory(graphics.device, stagingBufferMemory, null);
+        public Matrix4X4<float> model;
+        public Matrix4X4<float> view;
+        public Matrix4X4<float> proj;
     }
 
-    private static void CreateIndexBuffer(ref VkGraphics graphics)
+    private static void CreateVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh, in Mesh mesh)
     {
-        var bufferSize = (ulong)(Unsafe.SizeOf<ushort>() * Indices.Length);
+        var bufferSize = (ulong)(Unsafe.SizeOf<Vertex>() * mesh.vertices.Count);
 
         Buffer stagingBuffer = default;
         DeviceMemory stagingBufferMemory = default;
@@ -58,17 +28,50 @@ internal static unsafe partial class VulkanGraphics
 
         void* data;
         graphics.vk!.MapMemory(graphics.device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        Indices.AsSpan().CopyTo(new Span<ushort>(data, Indices.Length));
+        CollectionsMarshal.AsSpan(mesh.vertices).CopyTo(new Span<Vertex>(data, mesh.vertices.Count));
         graphics.vk!.UnmapMemory(graphics.device, stagingBufferMemory);
 
-        CreateBuffer(ref graphics, bufferSize, BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageIndexBufferBit,
+        CreateBuffer(ref graphics, bufferSize,
+                     BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageVertexBufferBit,
                      MemoryPropertyFlags.MemoryPropertyDeviceLocalBit,
-                     ref graphics.indexBuffer, ref graphics.indexBufferMemory);
+                     ref vkMesh.vertexBuffer, ref vkMesh.vertexBufferMemory);
 
-        CopyBuffer(ref graphics, stagingBuffer, graphics.indexBuffer, bufferSize);
+        CopyBuffer(ref graphics, stagingBuffer, vkMesh.vertexBuffer, bufferSize);
 
         graphics.vk!.DestroyBuffer(graphics.device, stagingBuffer, null);
         graphics.vk!.FreeMemory(graphics.device, stagingBufferMemory, null);
+
+        vkMesh.vertexBufferSize = (uint)mesh.vertices.Count;
+    }
+
+    private static void CreateIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh, in Mesh mesh)
+    {
+        var bufferSize = (ulong)(Unsafe.SizeOf<uint>() * mesh.indices.Count);
+
+        Buffer stagingBuffer = default;
+        DeviceMemory stagingBufMem = default;
+        CreateBuffer(ref graphics, bufferSize,
+                     BufferUsageFlags.BufferUsageTransferSrcBit,
+                     MemoryPropertyFlags.MemoryPropertyHostVisibleBit | MemoryPropertyFlags.MemoryPropertyHostCoherentBit,
+                     ref stagingBuffer, ref stagingBufMem);
+
+        void* data;
+        graphics.vk!.MapMemory(graphics.device, stagingBufMem, 0, bufferSize, 0, &data);
+
+        CollectionsMarshal.AsSpan(mesh.indices).CopyTo(new Span<uint>(data, mesh.indices.Count));
+        graphics.vk!.UnmapMemory(graphics.device, stagingBufMem);
+
+        CreateBuffer(ref graphics, bufferSize,
+                     BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageIndexBufferBit,
+                     MemoryPropertyFlags.MemoryPropertyDeviceLocalBit,
+                     ref vkMesh.indexBuffer, ref vkMesh.indexBufferMemory);
+
+        CopyBuffer(ref graphics, stagingBuffer, vkMesh.indexBuffer, bufferSize);
+
+        graphics.vk!.DestroyBuffer(graphics.device, stagingBuffer, null);
+        graphics.vk!.FreeMemory(graphics.device, stagingBufMem, null);
+
+        vkMesh.indexBufferSize = (uint)mesh.indices.Count;
     }
 
     private static void CreateBuffer(ref VkGraphics graphics, ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, ref Buffer buffer, ref DeviceMemory bufferMemory)
@@ -172,6 +175,6 @@ internal static unsafe partial class VulkanGraphics
             if ((typeFilter & (1 << i)) != 0 && (memProperties.MemoryTypes[i].PropertyFlags & properties) == properties)
                 return (uint)i;
 
-        throw new Exception("failed to find suitable memory type!");
+        throw new Exception("Failed to find suitable memory type!");
     }
 }

@@ -1,21 +1,22 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Silk.NET.Maths;
 
-namespace Game.Voxels;
+namespace Game.Voxels.Collections;
 
 using Vector3Int = Vector3D<int>;
 
 public partial class Octree<T>
 {
+    public record struct Leaf(T Value, Vector3Int Pos);
+
     private class Node
     {
-        private const int NumObjectsAllowed = 8;
+        private const int NumValsAllowed = 8;
 
         private int _minSize;
         private BoundingBox _bounds = default;
-        private readonly List<OctreeObject> _objects = new();
+        private readonly List<Leaf> _leaves = new();
         private Node[]? _children;
         private BoundingBox[]? _childBounds;
         private Vector3Int _actualBoundsSize;
@@ -25,17 +26,15 @@ public partial class Octree<T>
 
         private bool HasChildren => _children is not null;
 
-        private record struct OctreeObject(T Obj, Vector3Int Pos);
-
         public Node(int baseLengthVal, int minSizeVal, in Vector3Int centerVal)
             => SetValues(baseLengthVal, minSizeVal, centerVal);
 
-        public bool Add(T obj, in Vector3Int objPos)
+        public bool Add(T obj, in Vector3Int pos)
         {
-            if (!Encapsulates(_bounds, objPos))
+            if (!Encapsulates(_bounds, pos))
                 return false;
 
-            SubAdd(obj, objPos);
+            SubAdd(obj, pos);
             return true;
         }
 
@@ -43,11 +42,11 @@ public partial class Octree<T>
         {
             var removed = false;
 
-            for (var i = 0; i < _objects.Count; i++)
+            for (var i = 0; i < _leaves.Count; i++)
             {
-                if (_objects[i].Obj!.Equals(obj))
+                if (_leaves[i].Value!.Equals(obj))
                 {
-                    removed = _objects.Remove(_objects[i]);
+                    removed = _leaves.Remove(_leaves[i]);
                     break;
                 }
             }
@@ -71,7 +70,7 @@ public partial class Octree<T>
             return removed;
         }
 
-        public bool Remove(T obj, in Vector3Int objPos) => Encapsulates(_bounds, objPos) && SubRemove(obj, objPos);
+        public bool Remove(in Vector3Int pos) => Encapsulates(_bounds, pos) && SubRemove(pos);
 
         // public void GetNearby(ref Ray ray, float maxDistance, List<T> result)
         // {
@@ -105,9 +104,29 @@ public partial class Octree<T>
         //     }
         // }
 
+        public bool TryGet(in Vector3Int pos, out T? val)
+        {
+            if (!HasChildren)
+            {
+                foreach ((T leafVal, Vector3Int leafPos) in _leaves)
+                {
+                    if (pos == leafPos)
+                    {
+                        val = leafVal;
+                        return true;
+                    }   
+                }
+                val = default;
+                return false;
+            }
+
+            int bestFit = BestFitChild(pos);
+            return _children![bestFit].TryGet(pos, out val);
+        }
+
         public void GetNearby(in Vector3Int position, float maxDistance, ICollection<T> result)
         {
-            var maxDistanceInt = (int) Scalar.Ceiling(maxDistance);
+            var maxDistanceInt = (int)Scalar.Ceiling(maxDistance);
             // Does the node contain this position at all?
             _bounds.Expand(new Vector3Int(maxDistanceInt * 2, maxDistanceInt * 2, maxDistanceInt * 2));
             bool contained = _bounds.Contains(position);
@@ -116,9 +135,9 @@ public partial class Octree<T>
                 return;
 
             // Check against any objects in this node
-            foreach (OctreeObject octree in _objects)
+            foreach (Leaf octree in _leaves)
                 if (Vector3D.Distance(position, octree.Pos) <= maxDistance)
-                    result.Add(octree.Obj);
+                    result.Add(octree.Value);
 
             // Check children
             if (_children is not null)
@@ -126,10 +145,11 @@ public partial class Octree<T>
                     _children[i].GetNearby(position, maxDistanceInt, result);
         }
 
-        public void GetAll(List<T> result)
+        public void GetAll(ICollection<Leaf> result)
         {
             // add directly contained objects
-            result.AddRange(_objects.Select(o => o.Obj));
+            foreach (Leaf leaf in _leaves)
+                result.Add(leaf);
 
             // add children objects
             if (_children is not null)
@@ -144,7 +164,6 @@ public partial class Octree<T>
                 Console.Error.WriteLine($"Child octree array must be length 8. Was length: {childOctrees.Length}");
                 return;
             }
-
             _children = childOctrees;
         }
 
@@ -159,14 +178,14 @@ public partial class Octree<T>
         {
             if (SideLength < 2 * minLength)
                 return this;
-            if (_objects.Count == 0 && (_children is null || _children.Length == 0))
+            if (_leaves.Count == 0 && (_children is null || _children.Length == 0))
                 return this;
 
             // Check objects in root
             int bestFit = -1;
-            for (var i = 0; i < _objects.Count; i++)
+            for (var i = 0; i < _leaves.Count; i++)
             {
-                OctreeObject curObj = _objects[i];
+                Leaf curObj = _leaves[i];
                 int newBestFit = BestFitChild(curObj.Pos);
                 if (i == 0 || newBestFit == bestFit)
                 {
@@ -213,10 +232,11 @@ public partial class Octree<T>
         /// <summary>
         /// Find which child node this object would be most likely to fit in.
         /// </summary>
-        /// <param name="objPos">The object's position.</param>
+        /// <param name="pos">The object's position.</param>
         /// <returns>One of the eight child octants.</returns>
-        public int BestFitChild(in Vector3Int objPos)
-            => (objPos.X <= Center.X ? 0 : 1) + (objPos.Y >= Center.Y ? 0 : 4) + (objPos.Z <= Center.Z ? 0 : 2);
+        public int BestFitChild(in Vector3Int pos) => (pos.X <= Center.X ? 0 : 1)
+                                                    + (pos.Y >= Center.Y ? 0 : 4)
+                                                    + (pos.Z <= Center.Z ? 0 : 2);
 
         /// <summary>
         /// Checks if this node or anything below it has something in it.
@@ -224,7 +244,7 @@ public partial class Octree<T>
         /// <returns>True if this node or any of its children, grandchildren etc have something in them</returns>
         public bool HasAnyObjects()
         {
-            if (_objects.Count > 0)
+            if (_leaves.Count > 0)
                 return true;
 
             if (_children is not null)
@@ -261,7 +281,7 @@ public partial class Octree<T>
             _childBounds[7] = new BoundingBox(Center + new Vector3Int(quarter, -quarter, quarter), childActualSize);
         }
 
-        private void SubAdd(T obj, in Vector3Int objPos)
+        private void SubAdd(T val, in Vector3Int pos)
         {
             // We know it fits at this level if we've got this far
 
@@ -270,10 +290,10 @@ public partial class Octree<T>
             if (!HasChildren)
             {
                 // Just add if few objects are here, or children would be below min size
-                if (_objects.Count < NumObjectsAllowed || SideLength / 2 < _minSize)
+                if (_leaves.Count < NumValsAllowed || SideLength / 2 < _minSize)
                 {
-                    var newObj = new OctreeObject(obj, objPos);
-                    _objects.Add(newObj);
+                    var newObj = new Leaf(val, pos);
+                    _leaves.Add(newObj);
                     return; // We're done. No children yet
                 }
 
@@ -288,48 +308,47 @@ public partial class Octree<T>
                     }
 
                     // Now that we have the new children, move this node's existing objects into them
-                    for (int i = _objects.Count - 1; i >= 0; i--)
+                    for (int i = _leaves.Count - 1; i >= 0; i--)
                     {
-                        OctreeObject existingObj = _objects[i];
+                        Leaf existingObj = _leaves[i];
                         // Find which child the object is closest to based on where the
                         // object's center is located in relation to the octree's center
                         int bestFitChild = BestFitChild(existingObj.Pos);
-                        _children[bestFitChild].SubAdd(existingObj.Obj, existingObj.Pos); // Go a level deeper					
-                        _objects.Remove(existingObj);                                     // Remove from here
+                        _children[bestFitChild].SubAdd(existingObj.Value, existingObj.Pos); // Go a level deeper					
+                        _leaves.Remove(existingObj);                                        // Remove from here
                     }
                 }
             }
 
             // Handle the new object we're adding now
-            int bestFit = BestFitChild(objPos);
-            _children![bestFit].SubAdd(obj, objPos);
+            int bestFit = BestFitChild(pos);
+            _children![bestFit].SubAdd(val, pos);
         }
 
-        private bool SubRemove(T obj, in Vector3Int objPos)
+        private bool SubRemove(in Vector3Int pos)
         {
-            var removed = false;
+            var wasRemoved = false;
 
-            for (var i = 0; i < _objects.Count; i++)
+            for (var i = 0; i < _leaves.Count; i++)
             {
-                if (_objects[i].Obj!.Equals(obj))
+                if (_leaves[i].Pos == pos)
                 {
-                    removed = _objects.Remove(_objects[i]);
+                    wasRemoved = _leaves.Remove(_leaves[i]);
                     break;
                 }
             }
 
-            if (!removed && _children is not null)
+            if (!wasRemoved && _children is not null)
             {
-                int bestFitChild = BestFitChild(objPos);
-                removed = _children[bestFitChild].SubRemove(obj, objPos);
+                int bestFitChild = BestFitChild(pos);
+                wasRemoved = _children[bestFitChild].SubRemove(pos);
             }
 
-            if (removed && _children is not null)
-                // Check if we should merge nodes now that we've removed an item
-                if (ShouldMerge())
-                    Merge();
+            // Check if we should merge nodes now that we've removed an item
+            if (wasRemoved && _children is not null && ShouldMerge())
+                Merge();
 
-            return removed;
+            return wasRemoved;
         }
 
         /// <summary>
@@ -361,11 +380,11 @@ public partial class Octree<T>
             for (var i = 0; i < 8; i++)
             {
                 Node curChild = _children![i];
-                int numObjects = curChild._objects.Count;
+                int numObjects = curChild._leaves.Count;
                 for (int j = numObjects - 1; j >= 0; j--)
                 {
-                    OctreeObject curObj = curChild._objects[j];
-                    _objects.Add(curObj);
+                    Leaf curObj = curChild._leaves[j];
+                    _leaves.Add(curObj);
                 }
             }
             // Remove the child nodes (and the objects in them - they've been added elsewhere now)
@@ -377,10 +396,10 @@ public partial class Octree<T>
         /// <summary>
         /// Checks if there are few enough objects in this node and its children that the children should all be merged into this.
         /// </summary>
-        /// <returns>True there are less or the same amount of objects in this and its children than <see cref="NumObjectsAllowed"/>.</returns>
+        /// <returns>True there are less or the same amount of objects in this and its children than <see cref="NumValsAllowed"/>.</returns>
         private bool ShouldMerge()
         {
-            int totalObjects = _objects.Count;
+            int totalObjects = _leaves.Count;
             if (_children is not null)
             {
                 foreach (Node child in _children)
@@ -391,10 +410,10 @@ public partial class Octree<T>
                         // or the child would have been merged already
                         return false;
                     }
-                    totalObjects += child._objects.Count;
+                    totalObjects += child._leaves.Count;
                 }
             }
-            return totalObjects <= NumObjectsAllowed;
+            return totalObjects <= NumValsAllowed;
         }
     }
 }

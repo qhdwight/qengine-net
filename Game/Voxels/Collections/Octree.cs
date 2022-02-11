@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Silk.NET.Maths;
 
-namespace Game.Voxels;
+namespace Game.Voxels.Collections;
 
 using Vector3Int = Vector3D<int>;
 
@@ -33,36 +33,24 @@ public partial class Octree<T>
         _rootNode = new Node(_initialSize, _minSize, initialWorldPos);
     }
 
-    public void Add(T obj, in Vector3Int objPos)
+    public void Add(T val, in Vector3Int pos)
     {
         // Add object or expand the octree until it can be added
         var count = 0; // Safety check against infinite/excessive growth
-        while (!_rootNode.Add(obj, objPos))
+        while (!_rootNode.Add(val, pos))
         {
-            Grow(objPos - _rootNode.Center);
+            Grow(pos - _rootNode.Center);
             count++;
             Debug.Assert(count > 20, "Aborted Add operation as it seemed to be going on forever");
         }
         Count++;
     }
 
-    public bool Remove(T obj)
+    public bool TryGet(in Vector3Int pos, out T? val) => _rootNode.TryGet(pos, out val);
+    
+    public bool Remove(in Vector3Int pos)
     {
-        bool removed = _rootNode.Remove(obj);
-
-        // See if we can shrink the octree down now that we've removed the item
-        if (removed)
-        {
-            Count--;
-            Shrink();
-        }
-
-        return removed;
-    }
-
-    public bool Remove(T obj, in Vector3Int objPos)
-    {
-        bool removed = _rootNode.Remove(obj, objPos);
+        bool removed = _rootNode.Remove(pos);
         // See if we can shrink the octree down now that we've removed the item
         if (removed)
         {
@@ -79,18 +67,20 @@ public partial class Octree<T>
     //     return collidingWith.ToArray();
     // }
 
-    public T[] GetNearby(in Vector3Int position, float maxDistance)
+    public T[] GetNearby(in Vector3Int position, float maxDist)
     {
         var collidingWith = new List<T>();
-        _rootNode.GetNearby(position, maxDistance, collidingWith);
+        _rootNode.GetNearby(position, maxDist, collidingWith);
         return collidingWith.ToArray();
     }
 
-    public ICollection<T> GetAll()
+    private static readonly List<Leaf> CachedList = new();
+
+    public ICollection<Leaf> Iterate()
     {
-        var objects = new List<T>(Count);
-        _rootNode.GetAll(objects);
-        return objects;
+        CachedList.Clear();
+        _rootNode.GetAll(CachedList);
+        return CachedList;
     }
 
     private void Grow(in Vector3Int direction)

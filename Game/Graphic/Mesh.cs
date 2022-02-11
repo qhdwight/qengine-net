@@ -1,14 +1,15 @@
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 
-namespace Game.Graphic.Vulkan;
+namespace Game.Graphic;
 
-internal struct Vertex
+public record struct Vertex(Vector3D<float> pos, Vector4D<float> color)
 {
-    public Vector2D<float> pos;
-    public Vector3D<float> color;
+    public Vector3D<float> pos = pos;
+    public Vector4D<float> color = color;
 
     public static VertexInputBindingDescription GetBindingDescription()
     {
@@ -26,18 +27,18 @@ internal struct Vertex
     {
         var attributeDescriptions = new[]
         {
-            new VertexInputAttributeDescription()
+            new VertexInputAttributeDescription
             {
                 Binding = 0,
                 Location = 0,
-                Format = Format.R32G32Sfloat,
+                Format = Format.R32G32B32Sfloat,
                 Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(pos)),
             },
-            new VertexInputAttributeDescription()
+            new VertexInputAttributeDescription
             {
                 Binding = 0,
                 Location = 1,
-                Format = Format.R32G32B32Sfloat,
+                Format = Format.R32G32B32A32Sfloat,
                 Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(color)),
             }
         };
@@ -46,9 +47,8 @@ internal struct Vertex
     }
 }
 
-internal struct UniformBufferObject
+public record struct Mesh
 {
-    public Matrix4X4<float> model;
-    public Matrix4X4<float> view;
-    public Matrix4X4<float> proj;
+    public readonly List<Vertex> vertices = new();
+    public readonly List<uint> indices = new();
 }
