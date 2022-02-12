@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Game.Voxels.Collections;
 using Silk.NET.Maths;
 

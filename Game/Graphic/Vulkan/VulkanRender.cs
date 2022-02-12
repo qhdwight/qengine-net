@@ -1,5 +1,4 @@
 using System;
-using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -116,11 +115,10 @@ internal static unsafe partial class VulkanGraphics
                 {
                     Offset = { X = 0, Y = 0 },
                     Extent = graphics.swapChainExtent
-                }
+                },
+                ClearValueCount = 2,
+                PClearValues = clearColors
             };
-
-            renderPassInfo.ClearValueCount = 2;
-            renderPassInfo.PClearValues = clearColors;
 
             vk.CmdBeginRenderPass(cmdBuf, &renderPassInfo, SubpassContents.Inline);
             vk.CmdBindPipeline(cmdBuf, PipelineBindPoint.Graphics, graphics.graphicsPipeline);

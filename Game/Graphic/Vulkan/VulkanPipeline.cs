@@ -287,10 +287,8 @@ internal static unsafe partial class VulkanGraphics
             QueueFamilyIndex = queueFamilyIndices.GraphicsFamily!.Value
         };
 
-        if (graphics.vk!.CreateCommandPool(graphics.device, poolInfo, null, out graphics.commandPool) != Result.Success)
-        {
+        if (graphics.vk!.CreateCommandPool(graphics.device, poolInfo, null, out graphics.cmdPool) != Result.Success)
             throw new Exception("Failed to create command pool!");
-        }
     }
     
     private static Format FindDepthFormat(ref VkGraphics graphics)
@@ -327,7 +325,7 @@ internal static unsafe partial class VulkanGraphics
         CommandBufferAllocateInfo allocInfo = new()
         {
             SType = StructureType.CommandBufferAllocateInfo,
-            CommandPool = graphics.commandPool,
+            CommandPool = graphics.cmdPool,
             Level = CommandBufferLevel.Primary,
             CommandBufferCount = (uint)graphics.commandBuffers.Length
         };
@@ -384,7 +382,7 @@ internal static unsafe partial class VulkanGraphics
         DescriptorPoolSize storagePoolSize = new()
         {
             Type = DescriptorType.StorageBuffer,
-            DescriptorCount = 1
+            DescriptorCount = 2
         };
 
         DescriptorPoolSize* poolSizes = stackalloc DescriptorPoolSize[] { uniformPoolSize, storagePoolSize };
@@ -392,9 +390,9 @@ internal static unsafe partial class VulkanGraphics
         DescriptorPoolCreateInfo poolInfo = new()
         {
             SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = 1,
+            PoolSizeCount = 2,
             PPoolSizes = poolSizes,
-            MaxSets = (uint)graphics.swapChainImages!.Length
+            MaxSets = (uint)graphics.swapChainImages!.Length + 1
         };
 
         fixed (DescriptorPool* descriptorPoolPtr = &graphics.descriptorPool)

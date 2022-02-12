@@ -110,40 +110,24 @@ internal static unsafe partial class VulkanGraphics
         {
             SType = StructureType.CommandBufferAllocateInfo,
             Level = CommandBufferLevel.Primary,
-            CommandPool = graphics.commandPool,
+            CommandPool = graphics.cmdPool,
             CommandBufferCount = 1,
         };
-
         graphics.vk!.AllocateCommandBuffers(graphics.device, allocateInfo, out CommandBuffer commandBuffer);
-
-        CommandBufferBeginInfo beginInfo = new()
-        {
-            SType = StructureType.CommandBufferBeginInfo,
-            Flags = CommandBufferUsageFlags.CommandBufferUsageOneTimeSubmitBit,
-        };
-
+        CommandBufferBeginInfo beginInfo = new(flags: CommandBufferUsageFlags.CommandBufferUsageOneTimeSubmitBit);
         graphics.vk!.BeginCommandBuffer(commandBuffer, beginInfo);
-
-        BufferCopy copyRegion = new()
-        {
-            Size = size,
-        };
-
+        BufferCopy copyRegion = new() { Size = size, };
         graphics.vk!.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, copyRegion);
-
         graphics.vk!.EndCommandBuffer(commandBuffer);
-
         SubmitInfo submitInfo = new()
         {
             SType = StructureType.SubmitInfo,
             CommandBufferCount = 1,
             PCommandBuffers = &commandBuffer,
         };
-
         graphics.vk!.QueueSubmit(graphics.graphicsQueue, 1, submitInfo, default);
         graphics.vk!.QueueWaitIdle(graphics.graphicsQueue);
-
-        graphics.vk!.FreeCommandBuffers(graphics.device, graphics.commandPool, 1, commandBuffer);
+        graphics.vk!.FreeCommandBuffers(graphics.device, graphics.cmdPool, 1, commandBuffer);
     }
 
     private static void UpdateUniformBuffer(ref VkGraphics graphics, in DrawInfo drawInfo, uint currentImage)
@@ -169,11 +153,9 @@ internal static unsafe partial class VulkanGraphics
     private static uint FindMemoryType(ref VkGraphics graphics, uint typeFilter, MemoryPropertyFlags properties)
     {
         graphics.vk!.GetPhysicalDeviceMemoryProperties(graphics.physicalDevice, out PhysicalDeviceMemoryProperties memProperties);
-
         for (var i = 0; i < memProperties.MemoryTypeCount; i++)
             if ((typeFilter & (1 << i)) != 0 && (memProperties.MemoryTypes[i].PropertyFlags & properties) == properties)
                 return (uint)i;
-
         throw new Exception("Failed to find suitable memory type!");
     }
 }

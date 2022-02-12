@@ -17,8 +17,9 @@ internal record struct QueueFamilyIndices
 {
     internal uint? GraphicsFamily { get; set; }
     internal uint? PresentFamily { get; set; }
+    internal uint? ComputeFamily { get; set; }
 
-    internal bool IsComplete() => GraphicsFamily.HasValue && PresentFamily.HasValue;
+    internal bool IsComplete() => GraphicsFamily.HasValue && PresentFamily.HasValue && ComputeFamily.HasValue;
 }
 
 internal record struct SwapChainSupportDetails
@@ -75,7 +76,6 @@ internal static unsafe partial class VulkanGraphics
         CreateRenderPass(ref graphics);
         CreateDescriptorSetLayout(ref graphics);
         CreateGraphicsPipeline(ref graphics);
-        CreateCompute(ref graphics);
         CreateDepthResources(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateCommandPool(ref graphics);
@@ -84,6 +84,8 @@ internal static unsafe partial class VulkanGraphics
         CreateDescriptorSets(ref graphics);
         CreateCommandBuffers(ref graphics);
         CreateSyncObjects(ref graphics);
+
+        CreateCompute(ref graphics);
     }
 
     internal static void CleanupMeshBuffers(ref VkGraphics graphics, ref VkMesh vkMesh)
@@ -91,7 +93,7 @@ internal static unsafe partial class VulkanGraphics
         FreeMeshVertexBuffer(ref graphics, ref vkMesh);
         FreeMeshIndexBuffer(ref graphics, ref vkMesh);
     }
-    
+
     internal static void FreeMeshVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
     {
         Debug.Assert(vkMesh.vertexBuffer.Handle != default);
@@ -101,7 +103,7 @@ internal static unsafe partial class VulkanGraphics
         vkMesh.vertexBuffer = default;
         vkMesh.vertexBufferMemory = default;
     }
-    
+
     internal static void FreeMeshIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
     {
         Debug.Assert(vkMesh.indexBuffer.Handle != default);
@@ -112,36 +114,47 @@ internal static unsafe partial class VulkanGraphics
         vkMesh.indexBufferMemory = default;
     }
 
+    internal static void Check(Result result, string message)
+    {
+        if (result != Result.Success) throw new Exception($"{message}: {result}");
+    }
+
     internal static void CleanUp(ref VkGraphics graphics)
     {
         CleanUpSwapChain(ref graphics);
 
-        graphics.vk!.DestroyPipeline(graphics.device, graphics.compPipeline, default);
-        graphics.vk.DestroyPipelineLayout(graphics.device, graphics.compPipelineLayout, default);
-        graphics.vk.DestroyDescriptorSetLayout(graphics.device, graphics.compDescSetLayout, null);
+        Vk vk = graphics.vk!;
 
-        graphics.vk.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
+        vk.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
+        
+        vk.FreeCommandBuffers(graphics.device, graphics.compCmdPool, 1, graphics.compCmdBuf);
+        vk.DestroyCommandPool(graphics.device, graphics.compCmdPool, null);
+        vk.DestroyBuffer(graphics.device, graphics.compBuf, null);
+        vk.FreeMemory(graphics.device, graphics.compBufMem, null);
+
+        vk.DestroyPipeline(graphics.device, graphics.compPipeline, default);
+        vk.DestroyPipelineLayout(graphics.device, graphics.compPipelineLayout, default);
+        vk.DestroyDescriptorSetLayout(graphics.device, graphics.compDescSetLayout, null);
+
+        vk.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
 
         for (var i = 0; i < MaxFramesInFlight; i++)
         {
-            graphics.vk.DestroySemaphore(graphics.device, graphics.renderFinishedSemaphores![i], null);
-            graphics.vk.DestroySemaphore(graphics.device, graphics.imageAvailableSemaphores![i], null);
-            graphics.vk.DestroyFence(graphics.device, graphics.inFlightFences![i], null);
+            vk.DestroySemaphore(graphics.device, graphics.renderFinishedSemaphores![i], null);
+            vk.DestroySemaphore(graphics.device, graphics.imageAvailableSemaphores![i], null);
+            vk.DestroyFence(graphics.device, graphics.inFlightFences![i], null);
         }
 
-        graphics.vk.DestroyCommandPool(graphics.device, graphics.commandPool, null);
+        vk.DestroyCommandPool(graphics.device, graphics.cmdPool, null);
 
-        graphics.vk.DestroyDevice(graphics.device, null);
+        vk.DestroyDevice(graphics.device, null);
 
         if (EnableValidationLayers)
-        {
-            // DestroyDebugUtilsMessenger equivalent to method DestroyDebugUtilsMessengerEXT from original tutorial.
             graphics.debugUtils!.DestroyDebugUtilsMessenger(graphics.instance, graphics.debugMessenger, null);
-        }
 
         graphics.khrSurface!.DestroySurface(graphics.instance, graphics.surface, null);
-        graphics.vk!.DestroyInstance(graphics.instance, null);
-        graphics.vk!.Dispose();
+        vk.DestroyInstance(graphics.instance, null);
+        vk.Dispose();
 
         graphics.window?.Dispose();
     }
@@ -407,21 +420,20 @@ internal static unsafe partial class VulkanGraphics
         fixed (QueueFamilyProperties* queueFamiliesPtr = queueFamilies)
             graphics.vk!.GetPhysicalDeviceQueueFamilyProperties(device, ref queueFamilyCount, queueFamiliesPtr);
 
-        uint i = 0;
+        uint familyIdx = 0;
         foreach (QueueFamilyProperties queueFamily in queueFamilies)
         {
-            if (queueFamily.QueueFlags.HasFlag(QueueFlags.QueueGraphicsBit))
-                indices.GraphicsFamily = i;
-            
-            graphics.khrSurface!.GetPhysicalDeviceSurfaceSupport(device, i, graphics.surface, out Bool32 presentSupport);
+            if (queueFamily.QueueFlags.HasFlag(QueueFlags.QueueGraphicsBit)) indices.GraphicsFamily = familyIdx;
 
-            if (presentSupport)
-                indices.PresentFamily = i;
+            if (queueFamily.QueueFlags.HasFlag(QueueFlags.QueueComputeBit)) indices.ComputeFamily = familyIdx;
+
+            graphics.khrSurface!.GetPhysicalDeviceSurfaceSupport(device, familyIdx, graphics.surface, out Bool32 presentSupport);
+            if (presentSupport) indices.PresentFamily = familyIdx;
 
             if (indices.IsComplete())
                 break;
 
-            i++;
+            familyIdx++;
         }
 
         return indices;

@@ -246,7 +246,6 @@ internal static unsafe partial class VulkanGraphics
         CreateDepthResources(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateUniformBuffers(ref graphics);
-        CreateDescriptorPool(ref graphics);
         CreateDescriptorSets(ref graphics);
         CreateCommandBuffers(ref graphics);
 
@@ -265,7 +264,7 @@ internal static unsafe partial class VulkanGraphics
             vk.DestroyFramebuffer(graphics.device, framebuffer, null);
 
         fixed (CommandBuffer* commandBuffersPtr = graphics.commandBuffers)
-            vk.FreeCommandBuffers(graphics.device, graphics.commandPool, (uint)graphics.commandBuffers!.Length, commandBuffersPtr);
+            vk.FreeCommandBuffers(graphics.device, graphics.cmdPool, (uint)graphics.commandBuffers!.Length, commandBuffersPtr);
 
         vk.DestroyPipeline(graphics.device, graphics.graphicsPipeline, null);
         vk.DestroyPipelineLayout(graphics.device, graphics.pipelineLayout, null);
@@ -281,7 +280,5 @@ internal static unsafe partial class VulkanGraphics
             vk.DestroyBuffer(graphics.device, graphics.uniformBuffers![i], null);
             vk.FreeMemory(graphics.device, graphics.uniformBuffersMemory![i], null);
         }
-
-        vk.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
     }
 }
