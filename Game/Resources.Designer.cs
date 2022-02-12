@@ -63,6 +63,16 @@ namespace Game {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] SimplexComp {
+            get {
+                object obj = ResourceManager.GetObject("SimplexComp", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] TriangleFrag {
             get {
                 object obj = ResourceManager.GetObject("TriangleFrag", resourceCulture);

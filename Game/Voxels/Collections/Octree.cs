@@ -41,7 +41,7 @@ public partial class Octree<T>
         {
             Grow(pos - _rootNode.Center);
             count++;
-            Debug.Assert(count > 20, "Aborted Add operation as it seemed to be going on forever");
+            Debug.Assert(count < 32, "Aborted add operation as it seemed to be going on forever");
         }
         Count++;
     }

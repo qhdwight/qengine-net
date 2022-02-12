@@ -9,15 +9,23 @@ using Vector3Int = Vector3D<int>;
 
 public class MapManager
 {
-    public static int ChunkSize => 16;
+    public static int ChunkSize => 32;
 
     public Dictionary<Vector3Int, Chunk> Chunks { get; } = new();
 
     public MapManager()
     {
-        Chunks[Vector3Int.Zero] = new Chunk(Vector3Int.Zero);
-        Chunks[Vector3Int.Zero].Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.Zero);
-        Chunks[Vector3Int.Zero].Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.One);
+        var chunk = new Chunk(Vector3Int.Zero);
+        Chunks[Vector3Int.Zero] = chunk;
+        // chunk.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.Zero);
+        for (var x = 0; x < ChunkSize; x++)
+        {
+            for (var y = 0; y < ChunkSize; y++)
+            {
+                int z = 0;
+                chunk.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), new Vector3Int(x, y, z));
+            }
+        }
     }
 
     public bool TryGetVoxel(in Vector3Int position, out Voxel voxel, Chunk? chunk = null)

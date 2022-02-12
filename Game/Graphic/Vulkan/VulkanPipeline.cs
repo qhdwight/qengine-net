@@ -162,7 +162,7 @@ internal static unsafe partial class VulkanGraphics
                 SType = StructureType.PipelineRasterizationStateCreateInfo,
                 DepthClampEnable = false,
                 RasterizerDiscardEnable = false,
-                PolygonMode = PolygonMode.Fill,
+                PolygonMode = PolygonMode.Line,
                 LineWidth = 1,
                 CullMode = CullModeFlags.CullModeBackBit,
                 FrontFace = FrontFace.CounterClockwise,
@@ -375,17 +375,25 @@ internal static unsafe partial class VulkanGraphics
 
     private static void CreateDescriptorPool(ref VkGraphics graphics)
     {
-        DescriptorPoolSize poolSize = new()
+        DescriptorPoolSize uniformPoolSize = new()
         {
             Type = DescriptorType.UniformBuffer,
             DescriptorCount = (uint)graphics.swapChainImages!.Length
         };
+        
+        DescriptorPoolSize storagePoolSize = new()
+        {
+            Type = DescriptorType.StorageBuffer,
+            DescriptorCount = 1
+        };
+
+        DescriptorPoolSize* poolSizes = stackalloc DescriptorPoolSize[] { uniformPoolSize, storagePoolSize };
 
         DescriptorPoolCreateInfo poolInfo = new()
         {
             SType = StructureType.DescriptorPoolCreateInfo,
             PoolSizeCount = 1,
-            PPoolSizes = &poolSize,
+            PPoolSizes = poolSizes,
             MaxSets = (uint)graphics.swapChainImages!.Length
         };
 
@@ -411,10 +419,8 @@ internal static unsafe partial class VulkanGraphics
 
             graphics.descriptorSets = new DescriptorSet[graphics.swapChainImages.Length];
             fixed (DescriptorSet* descriptorSetsPtr = graphics.descriptorSets)
-            {
                 if (graphics.vk!.AllocateDescriptorSets(graphics.device, allocateInfo, descriptorSetsPtr) != Result.Success)
                     throw new Exception("Failed to allocate descriptor sets!");
-            }
         }
 
         for (var i = 0; i < graphics.swapChainImages.Length; i++)

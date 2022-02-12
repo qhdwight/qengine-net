@@ -156,7 +156,7 @@ internal static unsafe partial class VulkanGraphics
             view = Matrix4X4.CreateLookAt((Vector3D<float>) drawInfo.Position,
                                           (Vector3D<float>)(drawInfo.Position + drawInfo.Forward),
                                           new Vector3D<float>{Z = 1.0f}),
-            proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(45.0f), ratio, 0.1f, 10.0f),
+            proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(45.0f), ratio, 0.1f, 256.0f),
         };
         ubo.proj.M22 *= -1;
 

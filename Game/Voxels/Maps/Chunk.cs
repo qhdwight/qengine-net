@@ -12,7 +12,7 @@ public class Chunk : Octree<Voxel>
 
     public Chunk(in Vector3Int position) : base(MapManager.ChunkSize, position, 4) { Position = position; }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool InsideChunk(in Vector3Int pos) => pos.X < MapManager.ChunkSize && pos.Y < MapManager.ChunkSize && pos.Z < MapManager.ChunkSize
-                                               && pos.X >= 0 && pos.Y >= 0 && pos.Z >= 0;
+    // [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    // public bool InsideChunk(in Vector3Int pos) => pos.X < MapManager.ChunkSize && pos.Y < MapManager.ChunkSize && pos.Z < MapManager.ChunkSize
+    //                                            && pos.X >= 0 && pos.Y >= 0 && pos.Z >= 0;
 }

@@ -75,6 +75,7 @@ internal static unsafe partial class VulkanGraphics
         CreateRenderPass(ref graphics);
         CreateDescriptorSetLayout(ref graphics);
         CreateGraphicsPipeline(ref graphics);
+        CreateCompute(ref graphics);
         CreateDepthResources(ref graphics);
         CreateFramebuffers(ref graphics);
         CreateCommandPool(ref graphics);
@@ -115,7 +116,11 @@ internal static unsafe partial class VulkanGraphics
     {
         CleanUpSwapChain(ref graphics);
 
-        graphics.vk!.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
+        graphics.vk!.DestroyPipeline(graphics.device, graphics.compPipeline, default);
+        graphics.vk.DestroyPipelineLayout(graphics.device, graphics.compPipelineLayout, default);
+        graphics.vk.DestroyDescriptorSetLayout(graphics.device, graphics.compDescSetLayout, null);
+
+        graphics.vk.DestroyDescriptorSetLayout(graphics.device, graphics.descriptorSetLayout, null);
 
         for (var i = 0; i < MaxFramesInFlight; i++)
         {
@@ -407,7 +412,7 @@ internal static unsafe partial class VulkanGraphics
         {
             if (queueFamily.QueueFlags.HasFlag(QueueFlags.QueueGraphicsBit))
                 indices.GraphicsFamily = i;
-
+            
             graphics.khrSurface!.GetPhysicalDeviceSurfaceSupport(device, i, graphics.surface, out Bool32 presentSupport);
 
             if (presentSupport)

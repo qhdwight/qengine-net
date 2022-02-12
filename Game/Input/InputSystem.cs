@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using Game.ECS;
 using Game.Graphic.Vulkan;

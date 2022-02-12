@@ -46,11 +46,15 @@ internal record struct VkGraphics
     internal Image depthImage;
     internal DeviceMemory depthImageMemory;
     internal ImageView depthImageView;
-    
+
     internal RenderPass renderPass;
     internal DescriptorSetLayout descriptorSetLayout;
     internal PipelineLayout pipelineLayout;
     internal Pipeline graphicsPipeline;
+
+    internal Pipeline compPipeline;
+    internal PipelineLayout compPipelineLayout;
+    internal DescriptorSetLayout compDescSetLayout;
 
     internal CommandPool commandPool;
 
