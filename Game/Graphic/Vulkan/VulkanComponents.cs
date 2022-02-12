@@ -58,15 +58,17 @@ internal record struct VkGraphics
     internal PipelineLayout compPipelineLayout;
     internal DescriptorSet compDescSet;
     internal DescriptorSetLayout compDescSetLayout;
-    internal Buffer compBuf;
-    internal DeviceMemory compBufMem;
+    internal Buffer compBufIn;
+    internal Buffer compBufOut;
+    internal DeviceMemory compBufMemIn;
+    internal DeviceMemory compBufMemOut;
 
     internal CommandPool cmdPool;
 
     internal Buffer[]? uniformBuffers;
     internal DeviceMemory[]? uniformBuffersMemory;
 
-    internal DescriptorPool descriptorPool;
+    internal DescriptorPool descPool;
     internal DescriptorSet[]? descriptorSets;
 
     internal CommandBuffer[]? commandBuffers;

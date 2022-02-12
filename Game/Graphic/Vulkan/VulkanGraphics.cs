@@ -125,12 +125,14 @@ internal static unsafe partial class VulkanGraphics
 
         Vk vk = graphics.vk!;
 
-        vk.DestroyDescriptorPool(graphics.device, graphics.descriptorPool, null);
+        vk.DestroyDescriptorPool(graphics.device, graphics.descPool, null);
         
         vk.FreeCommandBuffers(graphics.device, graphics.compCmdPool, 1, graphics.compCmdBuf);
         vk.DestroyCommandPool(graphics.device, graphics.compCmdPool, null);
-        vk.DestroyBuffer(graphics.device, graphics.compBuf, null);
-        vk.FreeMemory(graphics.device, graphics.compBufMem, null);
+        vk.DestroyBuffer(graphics.device, graphics.compBufIn, null);
+        vk.FreeMemory(graphics.device, graphics.compBufMemIn, null);
+        vk.DestroyBuffer(graphics.device, graphics.compBufOut, null);
+        vk.FreeMemory(graphics.device, graphics.compBufMemOut, null);
 
         vk.DestroyPipeline(graphics.device, graphics.compPipeline, default);
         vk.DestroyPipelineLayout(graphics.device, graphics.compPipelineLayout, default);
@@ -371,7 +373,6 @@ internal static unsafe partial class VulkanGraphics
         fixed (byte* codePtr = code)
         {
             createInfo.PCode = (uint*)codePtr;
-
             if (graphics.vk!.CreateShaderModule(graphics.device, createInfo, null, out shaderModule) != Result.Success)
                 throw new Exception("Failed to create shader module");
         }

@@ -30,7 +30,7 @@ public static class Game
         world.AddComp(cubeEnt, new Position());
 
         Entity mapEnt = world.AddEntity();
-        var mapManager = new MapManager();
+        var mapManager = new VoxelMap();
         world.AddComp(mapEnt, mapManager);
         world.AddComp(mapEnt, new Mesh());
         world.AddComp(mapEnt, new VkMesh());

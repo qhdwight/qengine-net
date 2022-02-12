@@ -21,7 +21,7 @@ internal static unsafe partial class VulkanGraphics
             InitialLayout = ImageLayout.Undefined,
             FinalLayout = ImageLayout.PresentSrcKhr
         };
-        
+
         AttachmentDescription depthAttachment = new()
         {
             Format = FindDepthFormat(ref graphics),
@@ -31,7 +31,7 @@ internal static unsafe partial class VulkanGraphics
             StencilLoadOp = AttachmentLoadOp.DontCare,
             StencilStoreOp = AttachmentStoreOp.DontCare,
             InitialLayout = ImageLayout.Undefined,
-            FinalLayout= ImageLayout.DepthStencilAttachmentOptimal
+            FinalLayout = ImageLayout.DepthStencilAttachmentOptimal
         };
 
         AttachmentReference colorAttachmentRef = new()
@@ -39,7 +39,7 @@ internal static unsafe partial class VulkanGraphics
             Attachment = 0,
             Layout = ImageLayout.ColorAttachmentOptimal
         };
-        
+
         AttachmentReference depthAttachmentRef = new()
         {
             Attachment = 1,
@@ -84,7 +84,7 @@ internal static unsafe partial class VulkanGraphics
     {
         byte[] vertShaderCode = Resources.TriangleVert;
         byte[] fragShaderCode = Resources.TriangleFrag;
-        
+
         ShaderModule vertShaderModule = CreateShaderModule(ref graphics, vertShaderCode);
         ShaderModule fragShaderModule = CreateShaderModule(ref graphics, fragShaderCode);
 
@@ -175,10 +175,10 @@ internal static unsafe partial class VulkanGraphics
                 SampleShadingEnable = false,
                 RasterizationSamples = SampleCountFlags.SampleCount1Bit
             };
-            
+
             PipelineDepthStencilStateCreateInfo depthStencil = new()
             {
-                SType= StructureType.PipelineDepthStencilStateCreateInfo,
+                SType = StructureType.PipelineDepthStencilStateCreateInfo,
                 DepthTestEnable = true,
                 DepthWriteEnable = true,
                 DepthCompareOp = CompareOp.Less,
@@ -290,9 +290,10 @@ internal static unsafe partial class VulkanGraphics
         if (graphics.vk!.CreateCommandPool(graphics.device, poolInfo, null, out graphics.cmdPool) != Result.Success)
             throw new Exception("Failed to create command pool!");
     }
-    
+
     private static Format FindDepthFormat(ref VkGraphics graphics)
-        => FindSupportedFormat(ref graphics, new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal, FormatFeatureFlags.FormatFeatureDepthStencilAttachmentBit);
+        => FindSupportedFormat(ref graphics, new[] { Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint }, ImageTiling.Optimal,
+                               FormatFeatureFlags.FormatFeatureDepthStencilAttachmentBit);
 
     private static Format FindSupportedFormat(ref VkGraphics graphics, IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
     {
@@ -309,12 +310,13 @@ internal static unsafe partial class VulkanGraphics
         }
         throw new Exception("Failed to find supported format!");
     }
-    
+
     private static void CreateDepthResources(ref VkGraphics graphics)
     {
         Format depthFormat = FindDepthFormat(ref graphics);
 
-        CreateImage(ref graphics, graphics.swapChainExtent.Width, graphics.swapChainExtent.Height, depthFormat, ImageTiling.Optimal, ImageUsageFlags.ImageUsageDepthStencilAttachmentBit, MemoryPropertyFlags.MemoryPropertyDeviceLocalBit, ref graphics.depthImage, ref graphics.depthImageMemory);
+        CreateImage(ref graphics, graphics.swapChainExtent.Width, graphics.swapChainExtent.Height, depthFormat, ImageTiling.Optimal,
+                    ImageUsageFlags.ImageUsageDepthStencilAttachmentBit, MemoryPropertyFlags.MemoryPropertyDeviceLocalBit, ref graphics.depthImage, ref graphics.depthImageMemory);
         graphics.depthImageView = CreateImageView(ref graphics, graphics.depthImage, depthFormat, ImageAspectFlags.ImageAspectDepthBit);
     }
 
@@ -378,7 +380,7 @@ internal static unsafe partial class VulkanGraphics
             Type = DescriptorType.UniformBuffer,
             DescriptorCount = (uint)graphics.swapChainImages!.Length
         };
-        
+
         DescriptorPoolSize storagePoolSize = new()
         {
             Type = DescriptorType.StorageBuffer,
@@ -395,7 +397,7 @@ internal static unsafe partial class VulkanGraphics
             MaxSets = (uint)graphics.swapChainImages!.Length + 1
         };
 
-        fixed (DescriptorPool* descriptorPoolPtr = &graphics.descriptorPool)
+        fixed (DescriptorPool* descriptorPoolPtr = &graphics.descPool)
             if (graphics.vk!.CreateDescriptorPool(graphics.device, poolInfo, null, descriptorPoolPtr) != Result.Success)
                 throw new Exception("Failed to create descriptor pool!");
     }
@@ -410,7 +412,7 @@ internal static unsafe partial class VulkanGraphics
             DescriptorSetAllocateInfo allocateInfo = new()
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
-                DescriptorPool = graphics.descriptorPool,
+                DescriptorPool = graphics.descPool,
                 DescriptorSetCount = (uint)graphics.swapChainImages!.Length,
                 PSetLayouts = layoutsPtr
             };
@@ -430,16 +432,12 @@ internal static unsafe partial class VulkanGraphics
                 Range = (ulong)Unsafe.SizeOf<UniformBufferObject>()
             };
 
-            WriteDescriptorSet descriptorWrite = new()
-            {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = graphics.descriptorSets[i],
-                DstBinding = 0,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.UniformBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &bufferInfo
-            };
+            WriteDescriptorSet descriptorWrite = new(dstSet: graphics.descriptorSets[i],
+                                                     dstBinding: 0,
+                                                     dstArrayElement: 0,
+                                                     descriptorType: DescriptorType.UniformBuffer,
+                                                     descriptorCount: 1,
+                                                     pBufferInfo: &bufferInfo);
 
             graphics.vk!.UpdateDescriptorSets(graphics.device, 1, descriptorWrite, 0, null);
         }

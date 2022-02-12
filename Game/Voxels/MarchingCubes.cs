@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using Game.ECS;
 using Game.Graphic;
+using Game.Graphic.Vulkan;
 using Game.Voxels.Maps;
 using Silk.NET.Maths;
 
@@ -17,20 +18,43 @@ public partial class MarchingCubes : ISystem
 
     private static readonly Vector3 Offset = new(0.5f, 0.5f, 0.5f);
 
+    private bool _hasAdded = false;
+
     public void Execute(World world)
     {
-        foreach (Entity ent in world.View<Mesh, MapManager>())
+        if (!_hasAdded)
+        {
+            foreach (Entity entity in world.View<VkGraphics>())
+            {
+                ref VkGraphics graphics = ref world.GetComp<VkGraphics>(entity);
+                if (graphics.vk == default) break;
+                
+                float[] heights = VulkanGraphics.Compute(ref graphics);
+                foreach (Entity ent in world.View<VoxelMap>())
+                {
+                    var mapManager = world.GetComp<VoxelMap>(ent);
+                    VoxelChunk c = mapManager.Chunks[Vector3Int.Zero];
+                    for (var x = 0; x < 32; x++)
+                    for (var y = 0; y < 32; y++)
+                        c.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), new Vector3Int(x, y, 3 + (int)(heights[x + y * 32] * 2.0f)));
+                }
+                _hasAdded = true;
+                break;
+            }
+        }
+
+        foreach (Entity ent in world.View<Mesh, VoxelMap>())
         {
             var mesh = world.GetComp<Mesh>(ent);
-            var mapManager = world.GetComp<MapManager>(ent);
-            foreach (Chunk chunk in mapManager.Chunks.Values)
+            var mapManager = world.GetComp<VoxelMap>(ent);
+            foreach (VoxelChunk chunk in mapManager.Chunks.Values)
             {
                 RenderChunk(mapManager, chunk, mesh, default);
             }
         }
     }
 
-    public static void RenderChunk(MapManager manager, Chunk chunk, Mesh solidMesh, Mesh foliageMesh)
+    public static void RenderChunk(VoxelMap manager, VoxelChunk chunk, Mesh solidMesh, Mesh foliageMesh)
     {
         solidMesh.vertices.Clear();
         solidMesh.indices.Clear();
@@ -39,7 +63,7 @@ public partial class MarchingCubes : ISystem
         Span<Vector3> positions = stackalloc Vector3[8];
         foreach ((Voxel voxel, Vector3Int pos) in chunk.Iterate())
         {
-            if (voxel.Flags.HasFlag(VoxelFlags.IsBlock))
+            if ((voxel.Flags & VoxelFlags.IsBlock) != 0)
             {
                 for (var orient = 0; orient < 6; orient++)
                 {
@@ -102,7 +126,7 @@ public partial class MarchingCubes : ISystem
     {
         Vector4D<byte> color = voxel.Color;
         foreach (Vector3 vert in BlockVerts[orient])
-            mesh.vertices.Add(new Vertex((Vector3)pos + vert, (Vector4D<float>) color));
+            mesh.vertices.Add(new Vertex((Vector3)pos + vert, (Vector4D<float>)color));
         mesh.indices.Add((uint)(mesh.vertices.Count - 4));
         mesh.indices.Add((uint)(mesh.vertices.Count - 3));
         mesh.indices.Add((uint)(mesh.vertices.Count - 2));
@@ -126,5 +150,5 @@ public partial class MarchingCubes : ISystem
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool ShouldRenderBlock(in Voxel voxel, int orient) => !voxel.Flags.HasFlag(VoxelFlags.IsBlock);
+    public static bool ShouldRenderBlock(in Voxel voxel, int orient) => (voxel.Flags & VoxelFlags.IsBlock) == 0;
 }

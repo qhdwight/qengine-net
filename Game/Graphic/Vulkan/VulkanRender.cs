@@ -86,6 +86,8 @@ internal static unsafe partial class VulkanGraphics
     {
         SyncMeshBuffers(ref graphics, mesh, ref vkMesh);
 
+        if (mesh.indices.Count == 0) return;
+
         ulong* offsetsPtr = stackalloc ulong[] { 0 };
         Buffer* vertexBuffersPtr = stackalloc Buffer[] { vkMesh.vertexBuffer };
 
@@ -101,10 +103,8 @@ internal static unsafe partial class VulkanGraphics
         {
             ref CommandBuffer cmdBuf = ref graphics.commandBuffers[i];
 
-            CommandBufferBeginInfo beginInfo = new() { SType = StructureType.CommandBufferBeginInfo };
-
-            if (vk.BeginCommandBuffer(cmdBuf, beginInfo) != Result.Success)
-                throw new Exception("Failed to begin recording command buffer!");
+            CommandBufferBeginInfo beginInfo = new(StructureType.CommandBufferBeginInfo);
+            Check(vk.BeginCommandBuffer(cmdBuf, beginInfo), "Failed to begin recording command buffer!");
 
             RenderPassBeginInfo renderPassInfo = new()
             {
@@ -129,8 +129,7 @@ internal static unsafe partial class VulkanGraphics
             vk.CmdDrawIndexed(cmdBuf, vkMesh.indexBufferSize, 1, 0, 0, 0);
 
             vk.CmdEndRenderPass(graphics.commandBuffers![i]);
-            if (vk.EndCommandBuffer(cmdBuf) != Result.Success)
-                throw new Exception("Failed to record command buffer!");
+            Check(vk.EndCommandBuffer(cmdBuf), "Failed to record command buffer!");
         }
     }
 

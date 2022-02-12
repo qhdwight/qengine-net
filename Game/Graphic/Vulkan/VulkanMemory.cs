@@ -19,84 +19,59 @@ internal static unsafe partial class VulkanGraphics
     private static void CreateVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh, in Mesh mesh)
     {
         var bufferSize = (ulong)(Unsafe.SizeOf<Vertex>() * mesh.vertices.Count);
-
         Buffer stagingBuffer = default;
         DeviceMemory stagingBufferMemory = default;
         CreateBuffer(ref graphics, bufferSize, BufferUsageFlags.BufferUsageTransferSrcBit,
                      MemoryPropertyFlags.MemoryPropertyHostVisibleBit | MemoryPropertyFlags.MemoryPropertyHostCoherentBit,
                      ref stagingBuffer, ref stagingBufferMemory);
-
         void* data;
         graphics.vk!.MapMemory(graphics.device, stagingBufferMemory, 0, bufferSize, 0, &data);
         CollectionsMarshal.AsSpan(mesh.vertices).CopyTo(new Span<Vertex>(data, mesh.vertices.Count));
         graphics.vk!.UnmapMemory(graphics.device, stagingBufferMemory);
-
         CreateBuffer(ref graphics, bufferSize,
                      BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageVertexBufferBit,
                      MemoryPropertyFlags.MemoryPropertyDeviceLocalBit,
                      ref vkMesh.vertexBuffer, ref vkMesh.vertexBufferMemory);
-
         CopyBuffer(ref graphics, stagingBuffer, vkMesh.vertexBuffer, bufferSize);
-
         graphics.vk!.DestroyBuffer(graphics.device, stagingBuffer, null);
         graphics.vk!.FreeMemory(graphics.device, stagingBufferMemory, null);
-
         vkMesh.vertexBufferSize = (uint)mesh.vertices.Count;
     }
 
     private static void CreateIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh, in Mesh mesh)
     {
         var bufferSize = (ulong)(Unsafe.SizeOf<uint>() * mesh.indices.Count);
-
         Buffer stagingBuffer = default;
         DeviceMemory stagingBufMem = default;
         CreateBuffer(ref graphics, bufferSize,
                      BufferUsageFlags.BufferUsageTransferSrcBit,
                      MemoryPropertyFlags.MemoryPropertyHostVisibleBit | MemoryPropertyFlags.MemoryPropertyHostCoherentBit,
                      ref stagingBuffer, ref stagingBufMem);
-
         void* data;
         graphics.vk!.MapMemory(graphics.device, stagingBufMem, 0, bufferSize, 0, &data);
-
         CollectionsMarshal.AsSpan(mesh.indices).CopyTo(new Span<uint>(data, mesh.indices.Count));
         graphics.vk!.UnmapMemory(graphics.device, stagingBufMem);
-
         CreateBuffer(ref graphics, bufferSize,
                      BufferUsageFlags.BufferUsageTransferDstBit | BufferUsageFlags.BufferUsageIndexBufferBit,
                      MemoryPropertyFlags.MemoryPropertyDeviceLocalBit,
                      ref vkMesh.indexBuffer, ref vkMesh.indexBufferMemory);
-
         CopyBuffer(ref graphics, stagingBuffer, vkMesh.indexBuffer, bufferSize);
-
         graphics.vk!.DestroyBuffer(graphics.device, stagingBuffer, null);
         graphics.vk!.FreeMemory(graphics.device, stagingBufMem, null);
-
         vkMesh.indexBufferSize = (uint)mesh.indices.Count;
     }
 
     private static void CreateBuffer(ref VkGraphics graphics, ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, ref Buffer buffer, ref DeviceMemory bufferMemory)
     {
-        BufferCreateInfo bufferInfo = new()
-        {
-            SType = StructureType.BufferCreateInfo,
-            Size = size,
-            Usage = usage,
-            SharingMode = SharingMode.Exclusive,
-        };
-
+        BufferCreateInfo bufferInfo = new(size: size, usage: usage, sharingMode: SharingMode.Exclusive);
         fixed (Buffer* bufferPtr = &buffer)
             if (graphics.vk!.CreateBuffer(graphics.device, bufferInfo, null, bufferPtr) != Result.Success)
                 throw new Exception("Failed to create vertex buffer!");
 
         graphics.vk!.GetBufferMemoryRequirements(graphics.device, buffer, out MemoryRequirements memRequirements);
 
-        MemoryAllocateInfo allocateInfo = new()
-        {
-            SType = StructureType.MemoryAllocateInfo,
-            AllocationSize = memRequirements.Size,
-            MemoryTypeIndex = FindMemoryType(ref graphics, memRequirements.MemoryTypeBits, properties),
-        };
-
+        MemoryAllocateInfo allocateInfo = new(allocationSize: memRequirements.Size,
+                                              memoryTypeIndex: FindMemoryType(ref graphics, memRequirements.MemoryTypeBits, properties));
         fixed (DeviceMemory* bufferMemoryPtr = &bufferMemory)
             if (graphics.vk!.AllocateMemory(graphics.device, allocateInfo, null, bufferMemoryPtr) != Result.Success)
                 throw new Exception("Failed to allocate vertex buffer memory!");
@@ -106,25 +81,14 @@ internal static unsafe partial class VulkanGraphics
 
     private static void CopyBuffer(ref VkGraphics graphics, Buffer srcBuffer, Buffer dstBuffer, ulong size)
     {
-        CommandBufferAllocateInfo allocateInfo = new()
-        {
-            SType = StructureType.CommandBufferAllocateInfo,
-            Level = CommandBufferLevel.Primary,
-            CommandPool = graphics.cmdPool,
-            CommandBufferCount = 1,
-        };
+        CommandBufferAllocateInfo allocateInfo = new(level: CommandBufferLevel.Primary, commandPool: graphics.cmdPool, commandBufferCount: 1);
         graphics.vk!.AllocateCommandBuffers(graphics.device, allocateInfo, out CommandBuffer commandBuffer);
         CommandBufferBeginInfo beginInfo = new(flags: CommandBufferUsageFlags.CommandBufferUsageOneTimeSubmitBit);
         graphics.vk!.BeginCommandBuffer(commandBuffer, beginInfo);
         BufferCopy copyRegion = new() { Size = size, };
         graphics.vk!.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, copyRegion);
         graphics.vk!.EndCommandBuffer(commandBuffer);
-        SubmitInfo submitInfo = new()
-        {
-            SType = StructureType.SubmitInfo,
-            CommandBufferCount = 1,
-            PCommandBuffers = &commandBuffer,
-        };
+        SubmitInfo submitInfo = new(commandBufferCount: 1, pCommandBuffers: &commandBuffer);
         graphics.vk!.QueueSubmit(graphics.graphicsQueue, 1, submitInfo, default);
         graphics.vk!.QueueWaitIdle(graphics.graphicsQueue);
         graphics.vk!.FreeCommandBuffers(graphics.device, graphics.cmdPool, 1, commandBuffer);
@@ -137,9 +101,9 @@ internal static unsafe partial class VulkanGraphics
         {
             // model = Matrix4X4.CreateFromAxisAngle(new Vector3D<float>(0, 0, 1), time * Scalar.DegreesToRadians(90.0f)),
             model = Matrix4X4<float>.Identity,
-            view = Matrix4X4.CreateLookAt((Vector3D<float>) drawInfo.Position,
+            view = Matrix4X4.CreateLookAt((Vector3D<float>)drawInfo.Position,
                                           (Vector3D<float>)(drawInfo.Position + drawInfo.Forward),
-                                          new Vector3D<float>{Z = 1.0f}),
+                                          new Vector3D<float> { Z = 1.0f }),
             proj = Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(45.0f), ratio, 0.1f, 256.0f),
         };
         ubo.proj.M22 *= -1;

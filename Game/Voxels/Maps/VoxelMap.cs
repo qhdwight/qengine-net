@@ -7,28 +7,20 @@ namespace Game.Voxels.Maps;
 using Vector3 = Vector3D<float>;
 using Vector3Int = Vector3D<int>;
 
-public class MapManager
+public class VoxelMap
 {
     public static int ChunkSize => 32;
 
-    public Dictionary<Vector3Int, Chunk> Chunks { get; } = new();
+    public Dictionary<Vector3Int, VoxelChunk> Chunks { get; } = new();
 
-    public MapManager()
+    public VoxelMap()
     {
-        var chunk = new Chunk(Vector3Int.Zero);
+        var chunk = new VoxelChunk(Vector3Int.Zero);
         Chunks[Vector3Int.Zero] = chunk;
         // chunk.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), Vector3Int.Zero);
-        for (var x = 0; x < ChunkSize; x++)
-        {
-            for (var y = 0; y < ChunkSize; y++)
-            {
-                int z = 0;
-                chunk.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), new Vector3Int(x, y, z));
-            }
-        }
     }
 
-    public bool TryGetVoxel(in Vector3Int position, out Voxel voxel, Chunk? chunk = null)
+    public bool TryGetVoxel(in Vector3Int position, out Voxel voxel, VoxelChunk? chunk = null)
     {
         chunk ??= GetChunkFromWorldPosition(position);
         if (chunk is null)
@@ -45,16 +37,16 @@ public class MapManager
     /// <param name="position">World position of chunk</param>
     /// <returns>Chunk instance, or null if it doe not exist</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Chunk? GetChunkFromWorldPosition(in Vector3Int position)
+    public VoxelChunk? GetChunkFromWorldPosition(in Vector3Int position)
     {
         Vector3Int chunkPosition = WorldToChunk((Vector3)position);
         return GetChunkFromPosition(chunkPosition);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Chunk? GetChunkFromPosition(in Vector3Int chunkPosition)
+    public VoxelChunk? GetChunkFromPosition(in Vector3Int chunkPosition)
     {
-        Chunks.TryGetValue(chunkPosition, out Chunk? containerChunk);
+        Chunks.TryGetValue(chunkPosition, out VoxelChunk? containerChunk);
         return containerChunk;
     }
 

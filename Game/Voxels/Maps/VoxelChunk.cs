@@ -5,11 +5,11 @@ namespace Game.Voxels.Maps;
 
 using Vector3Int = Vector3D<int>;
 
-public class Chunk : Octree<Voxel>
+public class VoxelChunk : Octree<Voxel>
 {
     public Vector3D<int> Position { get; private set; }
 
-    public Chunk(in Vector3Int position) : base(MapManager.ChunkSize, position, 4) { Position = position; }
+    public VoxelChunk(in Vector3Int position) : base(VoxelMap.ChunkSize, position, 4) { Position = position; }
 
     // [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // public bool InsideChunk(in Vector3Int pos) => pos.X < MapManager.ChunkSize && pos.Y < MapManager.ChunkSize && pos.Z < MapManager.ChunkSize
