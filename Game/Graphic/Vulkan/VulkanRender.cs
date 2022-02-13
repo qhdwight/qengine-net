@@ -85,9 +85,7 @@ internal static unsafe partial class VulkanGraphics
     internal static void Draw(ref VkGraphics graphics, in Mesh mesh, ref VkMesh vkMesh)
     {
         SyncMeshBuffers(ref graphics, mesh, ref vkMesh);
-
-        if (mesh.indices.Count == 0) return;
-
+        
         ulong* offsetsPtr = stackalloc ulong[] { 0 };
         Buffer* vertexBuffersPtr = stackalloc Buffer[] { vkMesh.vertexBuffer };
 
@@ -123,10 +121,13 @@ internal static unsafe partial class VulkanGraphics
             vk.CmdBeginRenderPass(cmdBuf, &renderPassInfo, SubpassContents.Inline);
             vk.CmdBindPipeline(cmdBuf, PipelineBindPoint.Graphics, graphics.graphicsPipeline);
 
-            vk.CmdBindVertexBuffers(cmdBuf, 0, 1, vertexBuffersPtr, offsetsPtr);
-            vk.CmdBindIndexBuffer(cmdBuf, vkMesh.indexBuffer, 0, IndexType.Uint32);
-            vk.CmdBindDescriptorSets(cmdBuf, PipelineBindPoint.Graphics, graphics.pipelineLayout, 0, 1, graphics.descriptorSets![i], 0, null);
-            vk.CmdDrawIndexed(cmdBuf, vkMesh.indexBufferSize, 1, 0, 0, 0);
+            if (mesh.indices.Count > 0)
+            {
+                vk.CmdBindVertexBuffers(cmdBuf, 0, 1, vertexBuffersPtr, offsetsPtr);
+                vk.CmdBindIndexBuffer(cmdBuf, vkMesh.indexBuffer, 0, IndexType.Uint32);
+                vk.CmdBindDescriptorSets(cmdBuf, PipelineBindPoint.Graphics, graphics.pipelineLayout, 0, 1, graphics.descriptorSets![i], 0, null);
+                vk.CmdDrawIndexed(cmdBuf, vkMesh.indexBufferSize, 1, 0, 0, 0);   
+            }
 
             vk.CmdEndRenderPass(graphics.commandBuffers![i]);
             Check(vk.EndCommandBuffer(cmdBuf), "Failed to record command buffer!");
