@@ -14,7 +14,6 @@ using Vector3 = Vector3D<float>;
 public partial class MarchingCubes : ISystem
 {
     private const float IsoLevel = 0.5f;
-    private const float Epsilon = 1e-5f;
 
     private static readonly Vector3 Offset = new(0.5f, 0.5f, 0.5f);
 
@@ -28,7 +27,7 @@ public partial class MarchingCubes : ISystem
             {
                 ref VkGraphics graphics = ref world.GetComp<VkGraphics>(entity);
                 if (graphics.vk == default) break;
-                
+
                 float[] heights = VulkanGraphics.Compute(ref graphics);
                 foreach (Entity ent in world.View<VoxelMap>())
                 {
@@ -36,7 +35,18 @@ public partial class MarchingCubes : ISystem
                     VoxelChunk c = mapManager.Chunks[Vector3Int.Zero];
                     for (var x = 0; x < 32; x++)
                     for (var y = 0; y < 32; y++)
-                        c.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One), new Vector3Int(x, y, 3 + (int)(heights[x + y * 32] * 2.0f)));
+                    {
+                        float noise01 = Math.Clamp((heights[x + y * 32] + 1.0f) / 2.0f, 0.0f, 1.0f);
+                        var z = (int)(4.0f + 4.0f * noise01);
+                        for (var zo = 0; zo <= 4; zo++)
+                        {
+                            float density = noise01 * 2.0f - zo;
+                            c.Add(new Voxel(VoxelFlags.IsBlock, (byte)(density * byte.MaxValue), Vector4D<byte>.One),
+                                  new Vector3Int(x, y, z + zo));
+                        }
+                        // c.Add(new Voxel(VoxelFlags.IsBlock, 0, Vector4D<byte>.One),
+                        //       new Vector3Int(x, y, 0));
+                    }
                 }
                 _hasAdded = true;
                 break;
@@ -59,7 +69,7 @@ public partial class MarchingCubes : ISystem
         solidMesh.vertices.Clear();
         solidMesh.indices.Clear();
         Span<float> densities = stackalloc float[8];
-        Span<Vector3> vertices = stackalloc Vector3[8];
+        Span<Vector3> vertices = stackalloc Vector3[12];
         Span<Vector3> positions = stackalloc Vector3[8];
         foreach ((Voxel voxel, Vector3Int pos) in chunk.Iterate())
         {
@@ -74,10 +84,9 @@ public partial class MarchingCubes : ISystem
             }
             else
             {
-                var cubeIndex = 0;
+                var cubeIdx = 0;
                 for (var orient = 0; orient < 8; orient++)
                 {
-                    Vector3Int internalPos = pos + Positions[orient];
                     // bool isOnWorldEdge = internalPosition.X == 0 && lowerBound.X == chunk.Position.X
                     //                   || internalPosition.Y == 0 && lowerBound.Y == chunk.Position.Y
                     //                   || internalPosition.Z == 0 && lowerBound.Z == chunk.Position.Z;
@@ -91,25 +100,25 @@ public partial class MarchingCubes : ISystem
                     //     bool useEmpty = !isAdjacent || isOnWorldEdge;
                     //     density = useEmpty ? 0.0f : (float)adjacentVoxel.Density / byte.MaxValue * 2;
                     // }
-                    bool isAdjacent = manager.TryGetVoxel(internalPos + AdjOffsets[orient], out Voxel adjVoxel);
-                    float density = isAdjacent ? adjVoxel.Density : 0.0f;
+                    bool isAdj = manager.TryGetVoxel(pos + Positions[orient], out Voxel adjVoxel);
+                    float density = isAdj ? (float)adjVoxel.Density / byte.MaxValue : 0.0f;
                     densities[orient] = density;
-                    if (density < IsoLevel) cubeIndex |= 1 << orient;
+                    if (density < IsoLevel) cubeIdx |= 1 << orient;
                     positions[orient] = (Vector3)(pos + Positions[orient]);
                 }
-                if (cubeIndex is byte.MinValue or byte.MaxValue) continue;
+                if (cubeIdx is byte.MinValue or byte.MaxValue) continue;
 
                 for (var i = 0; i < 12; i++)
-                    vertices[i] = (EdgeTable[cubeIndex] & (1 << i)) != 0
+                    vertices[i] = (EdgeTable[cubeIdx] & (1 << i)) != 0
                         ? InterpolateVertex(positions[VertIdx1[i]], positions[VertIdx2[i]],
                                             densities[VertIdx1[i]], densities[VertIdx2[i]])
                         : Vector3.Zero;
-                for (var i = 0; TriangleTable[cubeIndex][i] != -1; i += 3)
+                for (var i = 0; TriangleTable[cubeIdx][i] != -1; i += 3)
                 {
                     for (var j = 0; j < 3; j++)
                     {
                         var index = (uint)solidMesh.vertices.Count;
-                        Vector3D<float> vertPos = vertices[TriangleTable[cubeIndex][i + j]] - Offset;
+                        Vector3D<float> vertPos = vertices[TriangleTable[cubeIdx][i + j]] - Offset;
                         solidMesh.vertices.Add(new Vertex(vertPos, Vector4D<float>.One));
                         solidMesh.indices.Add(index);
                     }
@@ -139,9 +148,9 @@ public partial class MarchingCubes : ISystem
 
     private static Vector3 InterpolateVertex(in Vector3 p1, in Vector3 p2, float v1, float v2)
     {
-        if (Scalar.Abs(IsoLevel - v1) < Epsilon || Scalar.Abs(v1 - v2) < Epsilon)
+        if (Scalar.Abs(IsoLevel - v1) < Scalar<float>.Epsilon || Scalar.Abs(v1 - v2) < Scalar<float>.Epsilon)
             return p1;
-        if (Scalar.Abs(IsoLevel - v2) < Epsilon)
+        if (Scalar.Abs(IsoLevel - v2) < Scalar<float>.Epsilon)
             return p2;
         float mu = (IsoLevel - v1) / (v2 - v1);
         return new Vector3(p1.X + mu * (p2.X - p1.X),

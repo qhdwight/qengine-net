@@ -30,6 +30,7 @@ internal static unsafe partial class VulkanGraphics
     {
         if (graphics.imagesInFlight![imageIndex].Handle != default)
             graphics.vk!.WaitForFences(graphics.device, 1, graphics.imagesInFlight[imageIndex], true, ulong.MaxValue);
+        
         graphics.imagesInFlight[imageIndex] = graphics.inFlightFences![graphics.currentFrame];
 
         SubmitInfo submitInfo = new() { SType = StructureType.SubmitInfo };
@@ -58,8 +59,8 @@ internal static unsafe partial class VulkanGraphics
 
         graphics.vk!.ResetFences(graphics.device, 1, graphics.inFlightFences[graphics.currentFrame]);
 
-        if (graphics.vk!.QueueSubmit(graphics.graphicsQueue, 1, submitInfo, graphics.inFlightFences[graphics.currentFrame]) != Result.Success)
-            throw new Exception("Failed to submit draw command buffer!");
+        Check(graphics.vk!.QueueSubmit(graphics.graphicsQueue, 1, submitInfo, graphics.inFlightFences[graphics.currentFrame]),
+              "Failed to submit draw command buffer!");
 
         SwapchainKHR* swapChains = stackalloc[] { graphics.swapChain };
         PresentInfoKHR presentInfo = new()
@@ -138,14 +139,12 @@ internal static unsafe partial class VulkanGraphics
     {
         if (vkMesh.indexBufferSize < mesh.indices.Count)
         {
-            if (vkMesh.indexBuffer.Handle != default)
-                FreeMeshIndexBuffer(ref graphics, ref vkMesh);
+            TryFreeMeshIndexBuffer(ref graphics, ref vkMesh);
             CreateIndexBuffer(ref graphics, ref vkMesh, mesh);
         }
         if (vkMesh.vertexBufferSize < mesh.vertices.Count)
         {
-            if (vkMesh.vertexBuffer.Handle != default)
-                FreeMeshVertexBuffer(ref graphics, ref vkMesh);
+            TryFreeMeshVertexBuffer(ref graphics, ref vkMesh);
             CreateVertexBuffer(ref graphics, ref vkMesh, mesh);
         }
     }

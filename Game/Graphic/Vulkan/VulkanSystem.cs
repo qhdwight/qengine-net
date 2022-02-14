@@ -23,7 +23,7 @@ public class VulkanSystem : ISystem
                 foreach (Entity meshEnt in world.View<VkMesh>())
                 {
                     ref VkMesh vkMesh = ref world.GetComp<VkMesh>(meshEnt);
-                    VulkanGraphics.CleanupMeshBuffers(ref graphics, ref vkMesh);
+                    VulkanGraphics.TryCleanupMeshBuffers(ref graphics, ref vkMesh);
                 }
                 VulkanGraphics.CleanUp(ref graphics);
             }

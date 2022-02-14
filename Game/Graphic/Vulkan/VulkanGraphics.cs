@@ -88,30 +88,26 @@ internal static unsafe partial class VulkanGraphics
         CreateCompute(ref graphics);
     }
 
-    internal static void CleanupMeshBuffers(ref VkGraphics graphics, ref VkMesh vkMesh)
+    internal static void TryCleanupMeshBuffers(ref VkGraphics graphics, ref VkMesh vkMesh)
     {
-        FreeMeshVertexBuffer(ref graphics, ref vkMesh);
-        FreeMeshIndexBuffer(ref graphics, ref vkMesh);
+        TryFreeMeshVertexBuffer(ref graphics, ref vkMesh);
+        TryFreeMeshIndexBuffer(ref graphics, ref vkMesh);
     }
 
-    internal static void FreeMeshVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
+    internal static void TryFreeMeshVertexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
     {
-        Debug.Assert(vkMesh.vertexBuffer.Handle != default);
-        Debug.Assert(vkMesh.vertexBufferMemory.Handle != default);
-        graphics.vk!.DestroyBuffer(graphics.device, vkMesh.vertexBuffer, null);
-        graphics.vk!.FreeMemory(graphics.device, vkMesh.vertexBufferMemory, null);
-        vkMesh.vertexBuffer = default;
-        vkMesh.vertexBufferMemory = default;
+        if (vkMesh.vertexBuffer.Handle != default)
+            graphics.vk!.DestroyBuffer(graphics.device, vkMesh.vertexBuffer, null);
+        if (vkMesh.vertexBufferMemory.Handle != default)
+            graphics.vk!.FreeMemory(graphics.device, vkMesh.vertexBufferMemory, null);
     }
 
-    internal static void FreeMeshIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
+    internal static void TryFreeMeshIndexBuffer(ref VkGraphics graphics, ref VkMesh vkMesh)
     {
-        Debug.Assert(vkMesh.indexBuffer.Handle != default);
-        Debug.Assert(vkMesh.indexBufferMemory.Handle != default);
-        graphics.vk!.DestroyBuffer(graphics.device, vkMesh.indexBuffer, null);
-        graphics.vk!.FreeMemory(graphics.device, vkMesh.indexBufferMemory, null);
-        vkMesh.indexBuffer = default;
-        vkMesh.indexBufferMemory = default;
+        if (vkMesh.indexBuffer.Handle != default)
+            graphics.vk!.DestroyBuffer(graphics.device, vkMesh.indexBuffer, null);
+        if (vkMesh.indexBufferMemory.Handle != default)
+            graphics.vk!.FreeMemory(graphics.device, vkMesh.indexBufferMemory, null);
     }
 
     internal static void Check(Result result, string message)

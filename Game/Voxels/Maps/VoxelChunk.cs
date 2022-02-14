@@ -9,7 +9,7 @@ public class VoxelChunk : Octree<Voxel>
 {
     public Vector3D<int> Position { get; private set; }
 
-    public VoxelChunk(in Vector3Int position) : base(VoxelMap.ChunkSize, position, 4) { Position = position; }
+    public VoxelChunk(in Vector3Int position) : base(VoxelMap.ChunkSize, position, 1) { Position = position; }
 
     // [MethodImpl(MethodImplOptions.AggressiveInlining)]
     // public bool InsideChunk(in Vector3Int pos) => pos.X < MapManager.ChunkSize && pos.Y < MapManager.ChunkSize && pos.Z < MapManager.ChunkSize

@@ -15,7 +15,7 @@ public partial class Octree<T>
 
     public int Count { get; private set; }
 
-    public BoundingBox MaxBounds => new(_rootNode.Center, new Vector3Int(_rootNode.SideLength, _rootNode.SideLength, _rootNode.SideLength));
+    public BoundingBox MaxBounds => new(_rootNode.center, new Vector3Int(_rootNode.SideLength, _rootNode.SideLength, _rootNode.SideLength));
 
     /// <param name="initialWorldSize">Size of the sides of the initial node. The octree will never shrink smaller than this.</param>
     /// <param name="initialWorldPos">Position of the centre of the initial node.</param>
@@ -39,15 +39,35 @@ public partial class Octree<T>
         var count = 0; // Safety check against infinite/excessive growth
         while (!_rootNode.Add(val, pos))
         {
-            Grow(pos - _rootNode.Center);
+            Grow(pos - _rootNode.center);
             count++;
             Debug.Assert(count < 32, "Aborted add operation as it seemed to be going on forever");
         }
         Count++;
     }
 
-    public bool TryGet(in Vector3Int pos, out T? val) => _rootNode.TryGet(pos, out val);
-    
+    public bool TryGet(in Vector3Int pos, out T? val)
+    {
+        Node node = _rootNode;
+        while (node.Children is not null)
+        {
+            int bestFit = (pos.X <= node.center.X ? 0 : 1)
+                        + (pos.Y >= node.center.Y ? 0 : 4)
+                        + (pos.Z <= node.center.Z ? 0 : 2);
+            node = node.Children[bestFit];
+        }
+        foreach (Leaf leaf in node.Leaves)
+        {
+            if (leaf.Pos == pos)
+            {
+                val = leaf.Value;
+                return true;
+            }
+        }
+        val = default;
+        return false;
+    }
+
     public bool Remove(in Vector3Int pos)
     {
         bool removed = _rootNode.Remove(pos);
@@ -91,7 +111,7 @@ public partial class Octree<T>
         Node oldRoot = _rootNode;
         int half = _rootNode.SideLength / 2;
         int newLength = _rootNode.SideLength * 2;
-        Vector3Int newCenter = _rootNode.Center + new Vector3Int(xDirection * half, yDirection * half, zDirection * half);
+        Vector3Int newCenter = _rootNode.center + new Vector3Int(xDirection * half, yDirection * half, zDirection * half);
 
         // Create a new, bigger octree root node
         _rootNode = new Node(newLength, _minSize, newCenter);
@@ -99,7 +119,7 @@ public partial class Octree<T>
         if (oldRoot.HasAnyObjects())
         {
             // Create 7 new octree children to go with the old root as children of the new root
-            int rootPos = _rootNode.BestFitChild(oldRoot.Center);
+            int rootPos = _rootNode.BestFitChild(oldRoot.center);
             var children = new Node[8];
             for (var i = 0; i < 8; i++)
             {

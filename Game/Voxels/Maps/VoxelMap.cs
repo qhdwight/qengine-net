@@ -22,44 +22,39 @@ public class VoxelMap
 
     public bool TryGetVoxel(in Vector3Int position, out Voxel voxel, VoxelChunk? chunk = null)
     {
-        chunk ??= GetChunkFromWorldPosition(position);
-        if (chunk is null)
-        {
-            voxel = default;
-            return false;
-        }
-        return chunk.TryGet(position, out voxel);
+        if (GetChunkFromWorldPosition(position, out chunk))
+            return chunk!.TryGet(position, out voxel);
+        
+        voxel = default;
+        return false;
     }
 
     /// <summary>
     /// Given a world position, determine if a chunk is there.
     /// </summary>
     /// <param name="position">World position of chunk</param>
+    /// <param name="containerChunk">Container chunk</param>
     /// <returns>Chunk instance, or null if it doe not exist</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public VoxelChunk? GetChunkFromWorldPosition(in Vector3Int position)
-    {
-        Vector3Int chunkPosition = WorldToChunk((Vector3)position);
-        return GetChunkFromPosition(chunkPosition);
-    }
+    public bool GetChunkFromWorldPosition(in Vector3Int position, out VoxelChunk? containerChunk)
+        => Chunks.TryGetValue(WorldToChunk(position), out containerChunk);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public VoxelChunk? GetChunkFromPosition(in Vector3Int chunkPosition)
-    {
-        Chunks.TryGetValue(chunkPosition, out VoxelChunk? containerChunk);
-        return containerChunk;
-    }
+    public bool GetChunkFromPosition(in Vector3Int chunkPosition, out VoxelChunk? containerChunk)
+        => Chunks.TryGetValue(chunkPosition, out containerChunk);
 
     /// <summary>
     /// Given a world position, return the position of the chunk that would contain it.
     /// </summary>
     /// <param name="worldPosition">World position inside of chunk</param>
     /// <returns>Position of chunk in respect to chunks dictionary</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private Vector3Int WorldToChunk(in Vector3 worldPosition)
-    {
-        float chunkSize = ChunkSize;
-        return new Vector3Int((int)Scalar.Floor(worldPosition.X / chunkSize),
-                              (int)Scalar.Floor(worldPosition.Y / chunkSize),
-                              (int)Scalar.Floor(worldPosition.Z / chunkSize));
-    }
+        => new((int)Scalar.Floor(worldPosition.X / ChunkSize),
+               (int)Scalar.Floor(worldPosition.Y / ChunkSize),
+               (int)Scalar.Floor(worldPosition.Z / ChunkSize));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Vector3Int WorldToChunk(in Vector3Int worldPosition)
+        => new(worldPosition.X / ChunkSize, worldPosition.Y / ChunkSize, worldPosition.Z / ChunkSize);
 }
